@@ -13,6 +13,7 @@ import '../application_package.dart';
 import '../base/common.dart';
 import '../base/context.dart';
 import '../base/process.dart';
+import '../base/process_manager.dart';
 import '../build_info.dart';
 import '../device.dart';
 import '../flx.dart' as flx;
@@ -37,9 +38,7 @@ class IOSSimulators extends PollingDeviceDiscovery {
 
 class IOSSimulatorUtils {
   /// Returns [IOSSimulatorUtils] active in the current app context (i.e. zone).
-  static IOSSimulatorUtils get instance {
-    return context[IOSSimulatorUtils] ?? (context[IOSSimulatorUtils] = new IOSSimulatorUtils());
-  }
+  static IOSSimulatorUtils get instance => context[IOSSimulatorUtils];
 
   List<IOSSimulator> getAttachedDevices() {
     if (!XCode.instance.isInstalledAndMeetsVersionCheck)
@@ -54,7 +53,7 @@ class IOSSimulatorUtils {
 /// A wrapper around the `simctl` command line tool.
 class SimControl {
   /// Returns [SimControl] active in the current app context (i.e. zone).
-  static SimControl get instance => context[SimControl] ?? (context[SimControl] = new SimControl());
+  static SimControl get instance => context[SimControl];
 
   Future<bool> boot({ String deviceName }) async {
     if (_isAnyConnected())
@@ -192,7 +191,7 @@ class SimControl {
 
     List<String> args = <String>['simctl', 'list', '--json', section.name];
     printTrace('$_xcrunPath ${args.join(' ')}');
-    ProcessResult results = Process.runSync(_xcrunPath, args);
+    ProcessResult results = processManager.runSync(_xcrunPath, args);
     if (results.exitCode != 0) {
       printError('Error executing simctl: ${results.exitCode}\n${results.stderr}');
       return <String, Map<String, dynamic>>{};
@@ -315,7 +314,7 @@ class IOSSimulator extends Device {
   @override
   bool get supportsHotMode => true;
 
-  _IOSSimulatorLogReader _logReader;
+  Map<ApplicationPackage, _IOSSimulatorLogReader> _logReaders;
   _IOSSimulatorDevicePortForwarder _portForwarder;
 
   String get xcrunPath => path.join('/usr', 'bin', 'xcrun');
@@ -423,18 +422,17 @@ class IOSSimulator extends Device {
 
       try {
         await _setupUpdatedApplicationBundle(app);
-      } on ToolExit {
+      } on ToolExit catch (e) {
+        printError(e.message);
         return new LaunchResult.failed();
       }
+    } else {
+      if (!installApp(app))
+        return new LaunchResult.failed();
     }
 
-    ProtocolDiscovery observatoryDiscovery;
-
-    if (debuggingOptions.debuggingEnabled)
-      observatoryDiscovery = new ProtocolDiscovery(logReader, ProtocolDiscovery.kObservatoryService);
-
     // Prepare launch arguments.
-    List<String> args = <String>[];
+    List<String> args = <String>["--enable-dart-profiling"];
 
     if (!prebuiltApplication) {
       args.addAll(<String>[
@@ -454,6 +452,10 @@ class IOSSimulator extends Device {
       args.add("--observatory-port=$observatoryPort");
     }
 
+    ProtocolDiscovery observatoryDiscovery;
+    if (debuggingOptions.debuggingEnabled)
+      observatoryDiscovery = new ProtocolDiscovery.observatory(getLogReader(app: app));
+
     // Launch the updated application in the simulator.
     try {
       SimControl.instance.launch(id, app.id, args);
@@ -464,27 +466,20 @@ class IOSSimulator extends Device {
 
     if (!debuggingOptions.debuggingEnabled) {
       return new LaunchResult.succeeded();
-    } else {
-      // Wait for the service protocol port here. This will complete once the
-      // device has printed "Observatory is listening on..."
-      printTrace('Waiting for observatory port to be available...');
+    }
 
-      try {
-        int devicePort = await observatoryDiscovery
-          .nextPort()
-          .timeout(new Duration(seconds: 20));
-        printTrace('service protocol port = $devicePort');
-        printStatus('Observatory listening on http://127.0.0.1:$devicePort');
-        return new LaunchResult.succeeded(observatoryPort: devicePort);
-      } catch (error) {
-        if (error is TimeoutException)
-          printError('Timed out while waiting for a debug connection.');
-        else
-          printError('Error waiting for a debug connection: $error');
-        return new LaunchResult.failed();
-      } finally {
-        observatoryDiscovery.cancel();
-      }
+    // Wait for the service protocol port here. This will complete once the
+    // device has printed "Observatory is listening on..."
+    printTrace('Waiting for observatory port to be available...');
+
+    try {
+      Uri deviceUri = await observatoryDiscovery.nextUri();
+      return new LaunchResult.succeeded(observatoryUri: deviceUri);
+    } catch (error) {
+      printError('Error waiting for a debug connection: $error');
+      return new LaunchResult.failed();
+    } finally {
+      observatoryDiscovery.cancel();
     }
   }
 
@@ -516,7 +511,7 @@ class IOSSimulator extends Device {
     // Step 2: Assert that the Xcode project was successfully built.
     IOSApp iosApp = app;
     Directory bundle = new Directory(iosApp.simulatorBundlePath);
-    bool bundleExists = await bundle.exists();
+    bool bundleExists = bundle.existsSync();
     if (!bundleExists)
       throwToolExit('Could not find the built application bundle at ${bundle.path}.');
 
@@ -554,11 +549,9 @@ class IOSSimulator extends Device {
   String get sdkNameAndVersion => category;
 
   @override
-  DeviceLogReader get logReader {
-    if (_logReader == null)
-      _logReader = new _IOSSimulatorLogReader(this);
-
-    return _logReader;
+  DeviceLogReader getLogReader({ApplicationPackage app}) {
+    _logReaders ??= <ApplicationPackage, _IOSSimulatorLogReader>{};
+    return _logReaders.putIfAbsent(app, () => new _IOSSimulatorLogReader(this, app));
   }
 
   @override
@@ -629,13 +622,16 @@ class IOSSimulator extends Device {
 }
 
 class _IOSSimulatorLogReader extends DeviceLogReader {
-  _IOSSimulatorLogReader(this.device) {
+  String _appName;
+
+  _IOSSimulatorLogReader(this.device, ApplicationPackage app) {
     _linesController = new StreamController<String>.broadcast(
       onListen: () {
         _start();
       },
       onCancel: _stop
     );
+    _appName = app == null ? null : app.name.replaceAll('.app', '');
   }
 
   final IOSSimulator device;
@@ -681,19 +677,21 @@ class _IOSSimulatorLogReader extends DeviceLogReader {
 
   static final RegExp _flutterRunnerRegex = new RegExp(r' FlutterRunner\[\d+\] ');
 
+  /// List of log categories to always show in the logs, even if this is an
+  /// app-secific [DeviceLogReader]. Add to this list to make the log output
+  /// more verbose.
+  static final List<String> _whitelistedLogCategories = <String>[
+    'CoreSimulatorBridge',
+  ];
+
   String _filterDeviceLine(String string) {
     Match match = _mapRegex.matchAsPrefix(string);
     if (match != null) {
-      // Filter out some messages that clearly aren't related to Flutter.
-      if (string.contains(': could not find icon for representation -> com.apple.'))
-        return null;
-
       String category = match.group(1);
       String content = match.group(2);
-      if (category == 'Game Center' || category == 'itunesstored' ||
-          category == 'nanoregistrylaunchd' || category == 'mstreamd' ||
-          category == 'syncdefaultsd' || category == 'companionappd' ||
-          category == 'searchd')
+
+      // Filter out some messages that clearly aren't related to Flutter.
+      if (string.contains(': could not find icon for representation -> com.apple.'))
         return null;
 
       if (category == 'CoreSimulatorBridge'
@@ -708,17 +706,25 @@ class _IOSSimulatorLogReader extends DeviceLogReader {
         return null;
 
       // assertiond: assertion failed: 15E65 13E230: assertiond + 15801 [3C808658-78EC-3950-A264-79A64E0E463B]: 0x1
-      if (category == 'assertiond' && content.startsWith('assertion failed: ')
-           && content.endsWith(']: 0x1'))
+      if (category == 'assertiond'
+          && content.startsWith('assertion failed: ')
+          && content.endsWith(']: 0x1'))
          return null;
 
-      if (category == 'Runner')
+      if (_appName == null || _whitelistedLogCategories.contains(category))
+        return '$category: $content';
+      else if (category == _appName)
         return content;
-      return '$category: $content';
-    }
-    match = _lastMessageSingleRegex.matchAsPrefix(string);
-    if (match != null)
+
       return null;
+    }
+
+    if (_lastMessageSingleRegex.matchAsPrefix(string) != null)
+      return null;
+
+    if (new RegExp(r'assertion failed: .* libxpc.dylib .* 0x7d$').matchAsPrefix(string) != null)
+      return null;
+
     return string;
   }
 

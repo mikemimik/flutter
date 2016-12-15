@@ -190,7 +190,7 @@ class ListItem extends StatelessWidget {
         ]
       );
     }
-    children.add(new Flexible(
+    children.add(new Expanded(
       child: center
     ));
 
@@ -209,7 +209,6 @@ class ListItem extends StatelessWidget {
         height: itemHeight,
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: new Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: children
         )
       )

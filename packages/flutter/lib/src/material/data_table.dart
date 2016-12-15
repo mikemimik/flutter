@@ -259,7 +259,7 @@ class DataTable extends StatelessWidget {
   }) : columns = columns,
        _onlyTextColumn = _initOnlyTextColumn(columns), super(key: key) {
     assert(columns != null);
-    assert(columns.length > 0);
+    assert(columns.isNotEmpty);
     assert(sortColumnIndex == null || (sortColumnIndex >= 0 && sortColumnIndex < columns.length));
     assert(sortAscending != null);
     assert(rows != null);
@@ -397,7 +397,7 @@ class DataTable extends StatelessWidget {
         down: sorted ? ascending : null,
         duration: _kSortArrowAnimationDuration
       );
-      final Widget arrowPadding = new SizedBox(width: _kSortArrowPadding);
+      final Widget arrowPadding = const SizedBox(width: _kSortArrowPadding);
       label = new Row(
         children: numeric ? <Widget>[ arrow, arrowPadding, label ]
                           : <Widget>[ label, arrowPadding, arrow ]
@@ -450,7 +450,7 @@ class DataTable extends StatelessWidget {
     final bool isLightTheme = Theme.of(context).brightness == Brightness.light;
     if (showEditIcon) {
       final Widget icon = new Icon(Icons.edit, size: 18.0);
-      label = new Flexible(child: label);
+      label = new Expanded(child: label);
       label = new Row(children: numeric ? <Widget>[ icon, label ] : <Widget>[ label, icon ]);
     }
     label = new Container(

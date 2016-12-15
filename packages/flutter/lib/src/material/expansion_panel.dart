@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:meta/meta.dart';
 
 import 'expand_icon.dart';
 import 'mergeable_material.dart';
@@ -116,7 +116,7 @@ class ExpansionPanelList extends StatelessWidget {
 
       Row header = new Row(
         children: <Widget>[
-          new Flexible(
+          new Expanded(
             child: new AnimatedContainer(
               duration: animationDuration,
               curve: Curves.fastOutSlowIn,
@@ -154,8 +154,8 @@ class ExpansionPanelList extends StatelessWidget {
               new AnimatedCrossFade(
                 firstChild: new Container(height: 0.0),
                 secondChild: children[i].body,
-                firstCurve: new Interval(0.0, 0.6, curve: Curves.fastOutSlowIn),
-                secondCurve: new Interval(0.4, 1.0, curve: Curves.fastOutSlowIn),
+                firstCurve: const Interval(0.0, 0.6, curve: Curves.fastOutSlowIn),
+                secondCurve: const Interval(0.4, 1.0, curve: Curves.fastOutSlowIn),
                 sizeCurve: Curves.fastOutSlowIn,
                 crossFadeState: _isChildExpanded(i) ? CrossFadeState.showSecond : CrossFadeState.showFirst,
                 duration: animationDuration,

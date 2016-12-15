@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 class TestScrollConfigurationDelegate extends ScrollConfigurationDelegate {
   TestScrollConfigurationDelegate(this.flag);
@@ -79,7 +80,7 @@ void main() {
 
     expect(delegate, isNotNull);
     expect(delegate.flag, isTrue);
-    expect(behavior, new isInstanceOf<BoundedBehavior>());
+    expect(behavior, const isInstanceOf<BoundedBehavior>());
     expect(behavior.contentExtent, equals(1000.0));
     expect(behavior.containerExtent, equals(600.0));
 
@@ -102,7 +103,7 @@ void main() {
 
     expect(delegate, isNotNull);
     expect(delegate.flag, isFalse);
-    expect(behavior, new isInstanceOf<UnboundedBehavior>());
+    expect(behavior, const isInstanceOf<UnboundedBehavior>());
     // Regression test for https://github.com/flutter/flutter/issues/5856
     expect(behavior.contentExtent, equals(1000.0));
     expect(behavior.containerExtent, equals(600.0));

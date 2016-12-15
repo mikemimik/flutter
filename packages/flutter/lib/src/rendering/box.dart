@@ -5,8 +5,9 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui show lerpDouble;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:meta/meta.dart';
+
 import 'package:vector_math/vector_math_64.dart';
 
 import 'debug.dart';
@@ -379,7 +380,7 @@ class BoxConstraints extends Constraints {
           affectedFieldsList.add('minHeight');
         if (maxHeight.isNaN)
           affectedFieldsList.add('maxHeight');
-        assert(affectedFieldsList.length > 0);
+        assert(affectedFieldsList.isNotEmpty);
         if (affectedFieldsList.length > 1)
           affectedFieldsList.add('and ${affectedFieldsList.removeLast()}');
         String whichFields = '';

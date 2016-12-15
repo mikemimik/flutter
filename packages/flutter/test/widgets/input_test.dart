@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,16 @@ class MockClipboard {
         break;
     }
   }
+}
+
+Widget overlay(Widget child) {
+  return new Overlay(
+    initialEntries: <OverlayEntry>[
+      new OverlayEntry(
+        builder: (BuildContext context) => child
+      )
+    ]
+  );
 }
 
 void main() {
@@ -79,7 +90,7 @@ void main() {
     List<TextSelectionPoint> endpoints = renderEditable.getEndpointsForSelection(
         new TextSelection.collapsed(offset: offset));
     expect(endpoints.length, 1);
-    return endpoints[0].point + new Offset(0.0, -2.0);
+    return endpoints[0].point + const Offset(0.0, -2.0);
   }
 
   testWidgets('Editable text has consistent size', (WidgetTester tester) async {
@@ -90,6 +101,7 @@ void main() {
       return new Center(
         child: new Material(
           child: new Input(
+            autofocus: true,
             value: inputValue,
             key: inputKey,
             hintText: 'Placeholder',
@@ -100,7 +112,6 @@ void main() {
     }
 
     await tester.pumpWidget(builder());
-    await showKeyboard(tester);
 
     RenderBox findInputBox() => tester.renderObject(find.byKey(inputKey));
 
@@ -163,7 +174,7 @@ void main() {
     await checkCursorToggle();
 
     // Try the test again with a nonempty EditableText.
-    updateEditingState(new TextEditingState(
+    updateEditingState(const TextEditingState(
       text: 'X',
       selectionBase: 1,
       selectionExtent: 1,
@@ -190,7 +201,7 @@ void main() {
     await showKeyboard(tester);
 
     const String testValue = 'ABC';
-    updateEditingState(new TextEditingState(
+    updateEditingState(const TextEditingState(
       text: testValue,
       selectionBase: testValue.length,
       selectionExtent: testValue.length,
@@ -297,7 +308,7 @@ void main() {
     // Drag the right handle 2 letters to the right.
     // Note: use a small offset because the endpoint is on the very corner
     // of the handle.
-    Point handlePos = endpoints[1].point + new Offset(1.0, 1.0);
+    Point handlePos = endpoints[1].point + const Offset(1.0, 1.0);
     Point newHandlePos = textOffsetToPosition(tester, selection.extentOffset+2);
     gesture = await tester.startGesture(handlePos, pointer: 7);
     await tester.pump();
@@ -310,7 +321,7 @@ void main() {
     expect(inputValue.selection.extentOffset, selection.extentOffset+2);
 
     // Drag the left handle 2 letters to the left.
-    handlePos = endpoints[0].point + new Offset(-1.0, 1.0);
+    handlePos = endpoints[0].point + const Offset(-1.0, 1.0);
     newHandlePos = textOffsetToPosition(tester, selection.baseOffset-2);
     gesture = await tester.startGesture(handlePos, pointer: 7);
     await tester.pump();
@@ -361,7 +372,7 @@ void main() {
     RenderEditable renderEditable = findRenderEditable(tester);
     List<TextSelectionPoint> endpoints = renderEditable.getEndpointsForSelection(
         inputValue.selection);
-    await tester.tapAt(endpoints[0].point + new Offset(1.0, 1.0));
+    await tester.tapAt(endpoints[0].point + const Offset(1.0, 1.0));
     await tester.pumpWidget(builder());
 
     // SELECT ALL should select all the text.
@@ -380,7 +391,7 @@ void main() {
     await tester.pumpWidget(builder());
     renderEditable = findRenderEditable(tester);
     endpoints = renderEditable.getEndpointsForSelection(inputValue.selection);
-    await tester.tapAt(endpoints[0].point + new Offset(1.0, 1.0));
+    await tester.tapAt(endpoints[0].point + const Offset(1.0, 1.0));
     await tester.pumpWidget(builder());
 
     // PASTE right before the 'e'.
@@ -427,7 +438,7 @@ void main() {
     RenderEditable renderEditable = findRenderEditable(tester);
     List<TextSelectionPoint> endpoints = renderEditable.getEndpointsForSelection(
         inputValue.selection);
-    await tester.tapAt(endpoints[0].point + new Offset(1.0, 1.0));
+    await tester.tapAt(endpoints[0].point + const Offset(1.0, 1.0));
     await tester.pumpWidget(builder());
 
     // Toolbar should fade in. Starting at 0% opacity.
@@ -562,7 +573,7 @@ void main() {
     expect(endpoints.length, 2);
 
     // Drag the right handle to the third line, just after 'Third'.
-    Point handlePos = endpoints[1].point + new Offset(1.0, 1.0);
+    Point handlePos = endpoints[1].point + const Offset(1.0, 1.0);
     Point newHandlePos = textOffsetToPosition(tester, testValue.indexOf('Third') + 5);
     gesture = await tester.startGesture(handlePos, pointer: 7);
     await tester.pump();
@@ -575,7 +586,7 @@ void main() {
     expect(inputValue.selection.extentOffset, 108);
 
     // Drag the left handle to the first line, just after 'First'.
-    handlePos = endpoints[0].point + new Offset(-1.0, 1.0);
+    handlePos = endpoints[0].point + const Offset(-1.0, 1.0);
     newHandlePos = textOffsetToPosition(tester, testValue.indexOf('First') + 5);
     gesture = await tester.startGesture(handlePos, pointer: 7);
     await tester.pump();
@@ -591,7 +602,8 @@ void main() {
     await tester.pumpWidget(builder());
     expect(inputValue.selection.isCollapsed, true);
     expect(inputValue.text, cutValue);
-  });
+  }, skip: Platform.isMacOS); // Skip due to https://github.com/flutter/flutter/issues/6961
+
 
   testWidgets('Can scroll multiline input', (WidgetTester tester) async {
     GlobalKey inputKey = new GlobalKey();
@@ -640,11 +652,11 @@ void main() {
 
     TestGesture gesture = await tester.startGesture(firstPos, pointer: 7);
     await tester.pump();
-    await gesture.moveBy(new Offset(0.0, -1000.0));
+    await gesture.moveBy(const Offset(0.0, -1000.0));
     await tester.pump(const Duration(seconds: 2));
     // Wait and drag again to trigger https://github.com/flutter/flutter/issues/6329
     // (No idea why this is necessary, but the bug wouldn't repro without it.)
-    await gesture.moveBy(new Offset(0.0, -1000.0));
+    await gesture.moveBy(const Offset(0.0, -1000.0));
     await tester.pump(const Duration(seconds: 2));
     await gesture.up();
     await tester.pump();
@@ -672,11 +684,11 @@ void main() {
     expect(endpoints.length, 2);
 
     // Drag the left handle to the first line, just after 'First'.
-    Point handlePos = endpoints[0].point + new Offset(-1.0, 1.0);
+    Point handlePos = endpoints[0].point + const Offset(-1.0, 1.0);
     Point newHandlePos = textOffsetToPosition(tester, kFourLines.indexOf('First') + 5);
     gesture = await tester.startGesture(handlePos, pointer: 7);
     await tester.pump();
-    await gesture.moveTo(newHandlePos + new Offset(0.0, -10.0));
+    await gesture.moveTo(newHandlePos + const Offset(0.0, -10.0));
     await tester.pump();
     await gesture.up();
     await tester.pump();
@@ -688,7 +700,7 @@ void main() {
     expect(newFirstPos.y, firstPos.y);
     expect(inputBox.hitTest(new HitTestResult(), position: inputBox.globalToLocal(newFirstPos)), isTrue);
     expect(inputBox.hitTest(new HitTestResult(), position: inputBox.globalToLocal(newFourthPos)), isFalse);
-  });
+  }, skip: Platform.isMacOS); // Skip due to https://github.com/flutter/flutter/issues/6961
 
   testWidgets('InputField smoke test', (WidgetTester tester) async {
     InputValue inputValue = InputValue.empty;
@@ -752,5 +764,50 @@ void main() {
     }
 
     checkText('Hello World');
+  });
+
+  testWidgets('Input label text animates', (WidgetTester tester) async {
+    GlobalKey inputKey = new GlobalKey();
+    GlobalKey focusKey = new GlobalKey();
+
+    Widget innerBuilder() {
+      return new Center(
+        child: new Material(
+          child: new Focus(
+            key: focusKey,
+            child: new Column(
+              children: <Widget>[
+                new Input(
+                  labelText: 'First'
+                ),
+                new Input(
+                  key: inputKey,
+                  labelText: 'Second'
+                ),
+              ]
+            )
+          )
+        )
+      );
+    }
+    Widget builder() => overlay(innerBuilder());
+
+    await tester.pumpWidget(builder());
+
+    Point pos = tester.getTopLeft(find.text('Second'));
+
+    // Focus the Input. The label should start animating upwards.
+    await tester.tap(find.byKey(inputKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    Point newPos = tester.getTopLeft(find.text('Second'));
+    expect(newPos.y, lessThan(pos.y));
+
+    // Label should still be sliding upward.
+    await tester.pump(const Duration(milliseconds: 50));
+    pos = newPos;
+    newPos = tester.getTopLeft(find.text('Second'));
+    expect(newPos.y, lessThan(pos.y));
   });
 }

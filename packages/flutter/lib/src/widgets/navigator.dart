@@ -4,8 +4,8 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:meta/meta.dart';
 
 import 'basic.dart';
 import 'binding.dart';
@@ -330,6 +330,15 @@ class Navigator extends StatefulWidget {
   ///
   /// The predicate may be applied to the same route more than once if
   /// [Route.willHandlePopInternally] is true.
+  ///
+  /// To pop until a route with a certain name, use the [RoutePredicate]
+  /// returned from [ModalRoute.withName].
+  ///
+  /// Typical usage is as follows:
+  ///
+  /// ```dart
+  /// Navigator.popUntil(context, ModalRoute.withName('/login'));
+  /// ```
   static void popUntil(BuildContext context, RoutePredicate predicate) {
     Navigator.of(context).popUntil(predicate);
   }
@@ -622,6 +631,9 @@ class NavigatorState extends State<Navigator> with TickerProviderStateMixin {
   ///
   /// The predicate may be applied to the same route more than once if
   /// [Route.willHandlePopInternally] is true.
+  ///
+  /// To pop until a route with a certain name, use the [RoutePredicate]
+  /// returned from [ModalRoute.withName].
   void popUntil(RoutePredicate predicate) {
     while (!predicate(_history.last))
       pop();
@@ -632,7 +644,7 @@ class NavigatorState extends State<Navigator> with TickerProviderStateMixin {
   /// The only route that cannot be popped off the navigator is the initial
   /// route.
   bool canPop() {
-    assert(_history.length > 0);
+    assert(_history.isNotEmpty);
     return _history.length > 1 || _history[0].willHandlePopInternally;
   }
 

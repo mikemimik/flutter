@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 
@@ -71,7 +73,7 @@ void main() {
     await tester.tap(find.byType(Scrollable));
     await tester.pump(const Duration(milliseconds: 50));
     expect(log, equals(<String>['tap 18']));
-    await tester.fling(find.byType(Scrollable), new Offset(0.0, -200.0), 1000.0);
+    await tester.fling(find.byType(Scrollable), const Offset(0.0, -200.0), 1000.0);
     await tester.pump(const Duration(milliseconds: 50));
     expect(log, equals(<String>['tap 18']));
     await tester.tap(find.byType(Scrollable));
@@ -80,7 +82,7 @@ void main() {
     await tester.tap(find.byType(Scrollable));
     await tester.pump(const Duration(milliseconds: 50));
     expect(log, equals(<String>['tap 18', 'tap 31']));
-  });
+  }, skip: Platform.isMacOS); // Skip due to https://github.com/flutter/flutter/issues/6961
 
   testWidgets('fling and wait and tap', (WidgetTester tester) async {
     List<String> log = <String>[];
@@ -94,7 +96,7 @@ void main() {
     await tester.tap(find.byType(Scrollable));
     await tester.pump(const Duration(milliseconds: 50));
     expect(log, equals(<String>['tap 18']));
-    await tester.fling(find.byType(Scrollable), new Offset(0.0, -200.0), 1000.0);
+    await tester.fling(find.byType(Scrollable), const Offset(0.0, -200.0), 1000.0);
     await tester.pump(const Duration(milliseconds: 50));
     expect(log, equals(<String>['tap 18']));
     await tester.pump(const Duration(seconds: 50));
@@ -102,5 +104,5 @@ void main() {
     await tester.tap(find.byType(Scrollable));
     await tester.pump(const Duration(milliseconds: 50));
     expect(log, equals(<String>['tap 18', 'tap 43']));
-  });
+  }, skip: Platform.isMacOS); // Skip due to https://github.com/flutter/flutter/issues/6961
 }

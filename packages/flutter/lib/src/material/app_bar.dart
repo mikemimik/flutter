@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:math' as math;
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -58,7 +60,7 @@ class _ToolbarLayout extends MultiChildLayoutDelegate {
     }
 
     if (hasChild(_ToolbarSlot.title)) {
-      final double maxWidth = size.width - kTitleLeft - actionsWidth;
+      final double maxWidth = math.max(size.width - kTitleLeft - actionsWidth, 0.0);
       final BoxConstraints constraints = new BoxConstraints.loose(size).copyWith(maxWidth: maxWidth);
       final Size titleSize = layoutChild(_ToolbarSlot.title, constraints);
       final double titleY = (size.height - titleSize.height) / 2.0;
@@ -108,7 +110,7 @@ class _AppBarExpandedHeight extends InheritedWidget {
 ///
 /// An app bar consists of a toolbar and potentially other widgets, such as a
 /// [TabBar] and a [FlexibleSpaceBar]. App bars typically expose one or more
-/// common actions with [IconButtons]s which are optionally followed by a
+/// common actions with [IconButton]s which are optionally followed by a
 /// [PopupMenuButton] for less common operations.
 ///
 /// App bars are most commonly used in the [Scaffold.appBar] property, which

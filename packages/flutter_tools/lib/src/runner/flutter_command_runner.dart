@@ -10,13 +10,17 @@ import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as path;
 
 import '../android/android_sdk.dart';
+import '../base/common.dart';
 import '../base/context.dart';
 import '../base/logger.dart';
 import '../base/process.dart';
+import '../base/process_manager.dart';
 import '../cache.dart';
 import '../dart/package_map.dart';
+import '../device.dart';
 import '../globals.dart';
 import '../toolchain.dart';
+import '../usage.dart';
 import '../version.dart';
 
 const String kFlutterRootEnvironmentVariableName = 'FLUTTER_ROOT'; // should point to //flutter/ (root of flutter/flutter repo)
@@ -91,6 +95,23 @@ class FlutterCommandRunner extends CommandRunner<Null> {
             'Name of a build output within the engine out directory, if you are building Flutter locally.\n'
             'Use this to select a specific version of the engine if you have built multiple engine targets.\n'
             'This path is relative to --local-engine-src-path/out.');
+    argParser.addOption('record-to',
+        help:
+            'Enables recording of process invocations (including stdout and '
+            'stderr of all such invocations), and serializes that recording to '
+            'the specified location.\n'
+            'If the location is a directory, a ZIP file named `recording.zip` '
+            'will be created in that directory. Otherwise, a ZIP file will be '
+            'created with the path specified in this flag.');
+    argParser.addOption('replay-from',
+        help:
+            'Enables mocking of process invocations by replaying their stdout, '
+            'stderr, and exit code from the specified recording (obtained '
+            'via --record-to).\n'
+            'If the location is a file, it is assumed to be a ZIP file '
+            'structured according to the output of --record-to. If the '
+            'location is a directory, it is assumed to be an unzipped version '
+            'of such a ZIP file.');
   }
 
   @override
@@ -135,8 +156,34 @@ class FlutterCommandRunner extends CommandRunner<Null> {
   @override
   Future<Null> runCommand(ArgResults globalResults) async {
     // Check for verbose.
-    if (globalResults['verbose'])
-      context[Logger] = new VerboseLogger();
+    if (globalResults['verbose']) {
+      // Override the logger.
+      context.setVariable(Logger, new VerboseLogger());
+    }
+
+    if (globalResults['record-to'] != null &&
+        globalResults['replay-from'] != null)
+      throwToolExit('--record-to and --replay-from cannot be used together.');
+
+    if (globalResults['record-to'] != null) {
+      // Turn on recording.
+      String recordTo = globalResults['record-to'].trim();
+      if (recordTo.isEmpty)
+        recordTo = null;
+      context.setVariable(ProcessManager,
+          new RecordingProcessManager(recordTo));
+    }
+
+    if (globalResults['replay-from'] != null) {
+      // Turn on replay-based mocking.
+      try {
+        context.setVariable(ProcessManager, await ReplayProcessManager.create(
+          globalResults['replay-from'].trim(),
+        ));
+      } on ArgumentError {
+        throwToolExit('--replay-from must specify a valid file or directory.');
+      }
+    }
 
     logger.quiet = globalResults['quiet'];
 
@@ -169,8 +216,7 @@ class FlutterCommandRunner extends CommandRunner<Null> {
     }
 
     // The Android SDK could already have been set by tests.
-    if (!context.isSet(AndroidSdk))
-      context[AndroidSdk] = AndroidSdk.locateAndroidSdk();
+    context.putIfAbsent(AndroidSdk, () => AndroidSdk.locateAndroidSdk());
 
     if (globalResults['version']) {
       flutterUsage.sendCommand('version');

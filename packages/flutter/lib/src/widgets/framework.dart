@@ -10,11 +10,11 @@ import 'debug.dart';
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/foundation.dart';
-import 'package:meta/meta.dart';
 
 export 'dart:ui' show hashValues, hashList;
-export 'package:flutter/rendering.dart' show RenderObject, RenderBox, debugPrint;
 export 'package:flutter/foundation.dart' show FlutterError;
+export 'package:flutter/foundation.dart' show VoidCallback, ValueChanged, ValueGetter, ValueSetter;
+export 'package:flutter/rendering.dart' show RenderObject, RenderBox, debugPrint;
 
 // KEYS
 
@@ -502,7 +502,7 @@ abstract class StatelessWidget extends Widget {
 /// description of the user interface is fully concrete (e.g., consists
 /// entirely of [RenderObjectWidget]s, which describe concrete [RenderObject]s).
 ///
-/// Stateless widget are useful when the part of the user interface you are
+/// Stateful widget are useful when the part of the user interface you are
 /// describing can change dynamically, e.g. due to having an internal
 /// clock-driven state, or depending on some system state. For compositions that
 /// depend only on the configuration information in the object itself and the
@@ -1512,6 +1512,12 @@ abstract class BuildContext {
   /// Calling this method is relatively expensive (O(N) in the depth of the
   /// tree). Only call this method if the distance from this widget to the
   /// desired ancestor is known to be small and bounded.
+  ///
+  /// Example:
+  ///
+  /// ```dart
+  /// context.ancestorStateOfType(const TypeMatcher<ScrollableState>());
+  /// ```
   State ancestorStateOfType(TypeMatcher matcher);
 
   /// Returns the [RenderObject] object of the nearest ancestor [RenderObjectWidget] widget
@@ -2039,9 +2045,11 @@ abstract class Element implements BuildContext {
   ///
   /// The following table summarises the above:
   ///
-  /// |                 | `newWidget == null`                 | `newWidget != null`                                            |
-  /// | `child == null` | Returns null.                       | Returns new [Element].                                         |
-  /// | `child != null` | Old child is removed, returns null. | Old child updated if possible, returns child or new [Element]. |
+  /// <table>
+  /// <tr><th><th>`newWidget == null`<th>`newWidget != null`
+  /// <tr><th>`child == null`<td>Returns null.<td>Returns new [Element].
+  /// <tr><th>`child != null`<td>Old child is removed, returns null.<td>Old child updated if possible, returns child or new [Element].
+  /// </table>
   @protected
   Element updateChild(Element child, Widget newWidget, dynamic newSlot) {
     if (newWidget == null) {
@@ -2357,7 +2365,7 @@ abstract class Element implements BuildContext {
     assert(widget != null);
     assert(depth != null);
     assert(_active);
-    if (_dependencies != null && _dependencies.length > 0) {
+    if (_dependencies != null && _dependencies.isNotEmpty) {
       for (InheritedElement dependency in _dependencies)
         dependency._dependents.remove(this);
       // For expediency, we don't actually clear the list here, even though it's
@@ -2621,7 +2629,7 @@ abstract class Element implements BuildContext {
     String result = '$prefixLineOne$this\n';
     List<Element> children = <Element>[];
     visitChildren(children.add);
-    if (children.length > 0) {
+    if (children.isNotEmpty) {
       Element last = children.removeLast();
       for (Element child in children)
         result += '${child.toStringDeep("$prefixOtherLines\u251C", "$prefixOtherLines\u2502")}';
@@ -2795,7 +2803,7 @@ abstract class BuildableElement extends Element {
 
   @override
   void activate() {
-    final bool hadDependencies = ((_dependencies != null && _dependencies.length > 0) || _hadUnsatisfiedDependencies);
+    final bool hadDependencies = ((_dependencies != null && _dependencies.isNotEmpty) || _hadUnsatisfiedDependencies);
     super.activate(); // clears _dependencies, and sets active to true
     if (_dirty) {
       if (_inDirtyList) {

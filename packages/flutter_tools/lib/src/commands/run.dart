@@ -170,13 +170,19 @@ class RunCommand extends RunCommandBase {
 
     if (argResults['machine']) {
       Daemon daemon = new Daemon(stdinCommandStream, stdoutCommandResponse,
-          notifyingLogger: new NotifyingLogger());
-      AppInstance app = daemon.appDomain.startApp(
-        device, Directory.current.path, targetFile, route,
-        getBuildMode(), argResults['start-paused'], hotMode);
+          notifyingLogger: new NotifyingLogger(), logToStdout: true);
+      AppInstance app;
+      try {
+        app = daemon.appDomain.startApp(
+          device, Directory.current.path, targetFile, route,
+          getBuildMode(), argResults['start-paused'], hotMode);
+      } catch (error) {
+        throwToolExit(error.toString());
+      }
       int result = await app.runner.waitForAppToFinish();
       if (result != 0)
         throwToolExit(null, exitCode: result);
+      return null;
     }
 
     int debugPort;

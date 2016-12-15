@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show timeDilation;
 
@@ -30,6 +31,7 @@ class GalleryApp extends StatefulWidget {
     this.updateUrlFetcher,
     this.enablePerformanceOverlay: true,
     this.checkerboardRasterCacheImages: true,
+    this.onSendFeedback,
     Key key}
   ) : super(key: key);
 
@@ -38,6 +40,8 @@ class GalleryApp extends StatefulWidget {
   final bool enablePerformanceOverlay;
 
   final bool checkerboardRasterCacheImages;
+
+  final VoidCallback onSendFeedback;
 
   @override
   GalleryAppState createState() => new GalleryAppState();
@@ -82,6 +86,7 @@ class GalleryAppState extends State<GalleryApp> {
           timeDilation = value;
         });
       },
+      onSendFeedback: config.onSendFeedback,
     );
 
     if (config.updateUrlFetcher != null) {

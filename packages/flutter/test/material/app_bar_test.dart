@@ -111,8 +111,8 @@ void main() {
     expect(tester.getSize(title).width, equals(800.0 - 72.0 - 8.0));
 
     actions = <Widget>[
-      new SizedBox(width: 100.0),
-      new SizedBox(width: 100.0)
+      const SizedBox(width: 100.0),
+      const SizedBox(width: 100.0)
     ];
     await tester.pumpWidget(buildApp());
 
@@ -171,12 +171,30 @@ void main() {
     leading = null;
     titleWidth = 620.0;
     actions = <Widget>[
-      new SizedBox(width: 45.0),
-      new SizedBox(width: 45.0)
+      const SizedBox(width: 45.0),
+      const SizedBox(width: 45.0)
     ];
     await tester.pumpWidget(buildApp());
     expect(tester.getTopLeft(title).x, 800 - 620 - 45 - 45 - 8);
     expect(tester.getSize(title).width, equals(620.0));
   });
 
+  testWidgets('AppBar render at zero size', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      new Center(
+        child: new Container(
+          height: 0.0,
+          width: 0.0,
+          child: new Scaffold(
+            appBar: new AppBar(
+              title: new Text('X')
+            )
+          )
+        )
+      )
+    );
+
+    Finder title = find.text('X');
+    expect(tester.getSize(title).isEmpty, isTrue);
+  });
 }

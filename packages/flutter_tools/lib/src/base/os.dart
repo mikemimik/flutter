@@ -10,14 +10,13 @@ import 'package:path/path.dart' as path;
 
 import 'context.dart';
 import 'process.dart';
+import 'process_manager.dart';
 
 /// Returns [OperatingSystemUtils] active in the current app context (i.e. zone).
-OperatingSystemUtils get os {
-  return context[OperatingSystemUtils] ?? (context[OperatingSystemUtils] = new OperatingSystemUtils._());
-}
+OperatingSystemUtils get os => context[OperatingSystemUtils];
 
 abstract class OperatingSystemUtils {
-  factory OperatingSystemUtils._() {
+  factory OperatingSystemUtils() {
     if (Platform.isWindows) {
       return new _WindowsUtils();
     } else {
@@ -51,14 +50,14 @@ class _PosixUtils extends OperatingSystemUtils {
 
   @override
   ProcessResult makeExecutable(File file) {
-    return Process.runSync('chmod', <String>['a+x', file.path]);
+    return processManager.runSync('chmod', <String>['a+x', file.path]);
   }
 
   /// Return the path to the given executable, or `null` if `which` was not able
   /// to locate the binary.
   @override
   File which(String execName) {
-    ProcessResult result = Process.runSync('which', <String>[execName]);
+    ProcessResult result = processManager.runSync('which', <String>[execName]);
     if (result.exitCode != 0)
       return null;
     String path = result.stdout.trim().split('\n').first.trim();
@@ -89,7 +88,7 @@ class _WindowsUtils extends OperatingSystemUtils {
 
   @override
   File which(String execName) {
-    ProcessResult result = Process.runSync('where', <String>[execName]);
+    ProcessResult result = processManager.runSync('where', <String>[execName]);
     if (result.exitCode != 0)
       return null;
     return new File(result.stdout.trim().split('\n').first.trim());

@@ -690,7 +690,7 @@ void main() {
     expect(onDraggableCanceledCalled, isFalse);
 
     Point flingStart = tester.getTopLeft(find.text('Source'));
-    await tester.flingFrom(flingStart, new Offset(0.0, 100.0), 1000.0);
+    await tester.flingFrom(flingStart, const Offset(0.0, 100.0), 1000.0);
     await tester.pump();
 
     expect(accepted, isEmpty);
@@ -700,7 +700,7 @@ void main() {
     expect(onDraggableCanceledCalled, isTrue);
     expect(onDraggableCanceledVelocity.pixelsPerSecond.dx.abs(), lessThan(0.0000001));
     expect((onDraggableCanceledVelocity.pixelsPerSecond.dy - 1000.0).abs(), lessThan(0.0000001));
-    expect(onDraggableCanceledOffset, equals(new Offset(flingStart.x, flingStart.y) + new Offset(0.0, 100.0)));
+    expect(onDraggableCanceledOffset, equals(new Offset(flingStart.x, flingStart.y) + const Offset(0.0, 100.0)));
   });
 
   testWidgets('Drag and drop - allow pass thru of unaccepted data test', (WidgetTester tester) async {
@@ -1007,15 +1007,15 @@ void main() {
             },
             child: new Draggable<dynamic>(
               child: new Container(
-                decoration: new BoxDecoration(
-                  backgroundColor: new Color(0xFFFFFF00)
+                decoration: const BoxDecoration(
+                  backgroundColor: const Color(0xFFFFFF00)
                 )
               ),
               feedback: new Container(
                 width: 100.0,
                 height: 100.0,
-                decoration: new BoxDecoration(
-                  backgroundColor: new Color(0xFFFF0000)
+                decoration: const BoxDecoration(
+                  backgroundColor: const Color(0xFFFF0000)
                 )
               )
             )
@@ -1042,15 +1042,15 @@ void main() {
             onTap: () { /* registers a tap recognizer */ },
             child: new Draggable<dynamic>(
               child: new Container(
-                decoration: new BoxDecoration(
-                  backgroundColor: new Color(0xFFFFFF00)
+                decoration: const BoxDecoration(
+                  backgroundColor: const Color(0xFFFFFF00)
                 )
               ),
               feedback: new Container(
                 width: 100.0,
                 height: 100.0,
-                decoration: new BoxDecoration(
-                  backgroundColor: new Color(0xFFFF0000)
+                decoration: const BoxDecoration(
+                  backgroundColor: const Color(0xFFFF0000)
                 )
               )
             )
@@ -1062,7 +1062,7 @@ void main() {
     TestGesture firstGesture = await tester.startGesture(const Point(10.0, 10.0), pointer: 24);
     TestGesture secondGesture = await tester.startGesture(const Point(10.0, 20.0), pointer: 25);
 
-    await firstGesture.moveBy(new Offset(100.0, 0.0));
+    await firstGesture.moveBy(const Offset(100.0, 0.0));
     await secondGesture.up();
   });
 
@@ -1223,6 +1223,82 @@ void main() {
     await tester.tap(find.text('X'));
     expect(events, equals(<String>['tap']));
   });
+
+  testWidgets('Drag feedback with child anchor positions correctly', (WidgetTester tester) async {
+    await _testChildAnchorFeedbackPosition(tester: tester);
+  });
+
+  testWidgets('Drag feedback with child anchor within a non-global Overlay positions correctly', (WidgetTester tester) async {
+    await _testChildAnchorFeedbackPosition(tester: tester, left: 100.0, top: 100.0);
+  });
+}
+
+Future<Null> _testChildAnchorFeedbackPosition({WidgetTester tester, double top: 0.0, double left: 0.0}) async {
+  List<int> accepted = <int>[];
+  int dragStartedCount = 0;
+
+  await tester.pumpWidget(new Stack(children: <Widget>[
+    new Positioned(
+      left: left,
+      top: top,
+      right: 0.0,
+      bottom: 0.0,
+      child: new MaterialApp(
+        home: new Column(
+          children: <Widget>[
+            new Draggable<int>(
+              data: 1,
+              child: new Text('Source'),
+              feedback: new Text('Dragging'),
+              onDragStarted: () {
+                ++dragStartedCount;
+              },
+            ),
+            new DragTarget<int>(
+              builder: (BuildContext context, List<int> data, List<dynamic> rejects) {
+                return new Container(height: 100.0, child: new Text('Target'));
+              },
+              onAccept: (int data) {
+                accepted.add(data);
+              }
+            ),
+          ]
+        )
+      )
+    )
+  ]));
+
+  expect(accepted, isEmpty);
+  expect(find.text('Source'), findsOneWidget);
+  expect(find.text('Dragging'), findsNothing);
+  expect(find.text('Target'), findsOneWidget);
+  expect(dragStartedCount, 0);
+
+  Point firstLocation = tester.getCenter(find.text('Source'));
+  TestGesture gesture = await tester.startGesture(firstLocation, pointer: 7);
+  await tester.pump();
+
+  expect(accepted, isEmpty);
+  expect(find.text('Source'), findsOneWidget);
+  expect(find.text('Dragging'), findsOneWidget);
+  expect(find.text('Target'), findsOneWidget);
+  expect(dragStartedCount, 1);
+
+
+  Point secondLocation = tester.getBottomRight(find.text('Target'));
+  await gesture.moveTo(secondLocation);
+  await tester.pump();
+
+  expect(accepted, isEmpty);
+  expect(find.text('Source'), findsOneWidget);
+  expect(find.text('Dragging'), findsOneWidget);
+  expect(find.text('Target'), findsOneWidget);
+  expect(dragStartedCount, 1);
+
+  Point feedbackTopLeft = tester.getTopLeft(find.text('Dragging'));
+  Point sourceTopLeft = tester.getTopLeft(find.text('Source'));
+  Offset dragOffset = secondLocation - firstLocation;
+  expect(feedbackTopLeft, equals(sourceTopLeft + dragOffset));
 }
 
 class DragTargetData { }

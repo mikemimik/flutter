@@ -8,11 +8,11 @@ import 'package:flutter_tools/src/globals.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('DeviceManager', () {
+  group('AppContext', () {
     test('error', () async {
       AppContext context = new AppContext();
       BufferLogger mockLogger = new BufferLogger();
-      context[Logger] = mockLogger;
+      context.setVariable(Logger, mockLogger);
 
       await context.runInZone(() {
         printError('foo bar');
@@ -26,7 +26,7 @@ void main() {
     test('status', () async {
       AppContext context = new AppContext();
       BufferLogger mockLogger = new BufferLogger();
-      context[Logger] = mockLogger;
+      context.setVariable(Logger, mockLogger);
 
       await context.runInZone(() {
         printStatus('foo bar');
@@ -40,7 +40,7 @@ void main() {
     test('trace', () async {
       AppContext context = new AppContext();
       BufferLogger mockLogger = new BufferLogger();
-      context[Logger] = mockLogger;
+      context.setVariable(Logger, mockLogger);
 
       await context.runInZone(() {
         printTrace('foo bar');
@@ -49,6 +49,32 @@ void main() {
       expect(mockLogger.errorText, '');
       expect(mockLogger.statusText, '');
       expect(mockLogger.traceText, 'foo bar\n');
+    });
+
+    test('awaitNestedZones', () async {
+      AppContext outerContext = new AppContext();
+      await outerContext.runInZone(() async {
+        AppContext middleContext = new AppContext();
+        await middleContext.runInZone(() async {
+          AppContext innerContext = new AppContext();
+          await innerContext.runInZone(() async {
+            expect(innerContext.getVariable(String), isNull);
+          });
+        });
+      });
+    });
+
+    test('fireAndForgetNestedZones', () async {
+      AppContext outerContext = new AppContext();
+      outerContext.runInZone(() async {
+        AppContext middleContext = new AppContext();
+        middleContext.runInZone(() async {
+          AppContext innerContext = new AppContext();
+          innerContext.runInZone(() async {
+            expect(innerContext.getVariable(String), isNull);
+          });
+        });
+      });
     });
   });
 }

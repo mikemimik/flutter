@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:meta/meta.dart';
 
 import 'button.dart';
 import 'colors.dart';
@@ -310,8 +310,8 @@ class _StepperState extends State<Stepper> with TickerProviderStateMixin {
       return new AnimatedCrossFade(
         firstChild: _buildCircle(index, true),
         secondChild: _buildTriangle(index, true),
-        firstCurve: new Interval(0.0, 0.6, curve: Curves.fastOutSlowIn),
-        secondCurve: new Interval(0.4, 1.0, curve: Curves.fastOutSlowIn),
+        firstCurve: const Interval(0.0, 0.6, curve: Curves.fastOutSlowIn),
+        secondCurve: const Interval(0.4, 1.0, curve: Curves.fastOutSlowIn),
         sizeCurve: Curves.fastOutSlowIn,
         crossFadeState: config.steps[index].state == StepState.error ? CrossFadeState.showSecond : CrossFadeState.showFirst,
         duration: kThemeAnimationDuration,
@@ -503,8 +503,8 @@ class _StepperState extends State<Stepper> with TickerProviderStateMixin {
               ]
             )
           ),
-          firstCurve: new Interval(0.0, 0.6, curve: Curves.fastOutSlowIn),
-          secondCurve: new Interval(0.4, 1.0, curve: Curves.fastOutSlowIn),
+          firstCurve: const Interval(0.0, 0.6, curve: Curves.fastOutSlowIn),
+          secondCurve: const Interval(0.4, 1.0, curve: Curves.fastOutSlowIn),
           sizeCurve: Curves.fastOutSlowIn,
           crossFadeState: _isCurrent(index) ? CrossFadeState.showSecond : CrossFadeState.showFirst,
           duration: kThemeAnimationDuration,
@@ -576,7 +576,7 @@ class _StepperState extends State<Stepper> with TickerProviderStateMixin {
 
       if (!_isLast(i))
         children.add(
-          new Flexible(
+          new Expanded(
             child: new Container(
               margin: const EdgeInsets.symmetric(horizontal: 8.0),
               height: 1.0,
@@ -599,7 +599,7 @@ class _StepperState extends State<Stepper> with TickerProviderStateMixin {
             )
           )
         ),
-        new Flexible(
+        new Expanded(
           child: new ScrollableViewport(
             child: new Container(
               margin: const EdgeInsets.all(24.0),

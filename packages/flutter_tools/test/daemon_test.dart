@@ -32,11 +32,11 @@ void main() {
     setUp(() {
       appContext = new AppContext();
       notifyingLogger = new NotifyingLogger();
-      appContext[Logger] = notifyingLogger;
-      appContext[Doctor] = new Doctor();
+      appContext.setVariable(Logger, notifyingLogger);
+      appContext.setVariable(Doctor, new Doctor());
       if (Platform.isMacOS)
-        appContext[XCode] = new XCode();
-      appContext[DeviceManager] = new MockDeviceManager();
+        appContext.setVariable(XCode, new XCode());
+      appContext.setVariable(DeviceManager, new MockDeviceManager());
     });
 
     tearDown(() {
@@ -83,6 +83,30 @@ void main() {
         responses.close();
         commands.close();
       });
+    });
+
+    _testUsingContext('daemon.logMessage logToStdout', () async {
+      StringBuffer buffer = new StringBuffer();
+
+      await runZoned(() async {
+        return appContext.runInZone(() async {
+          StreamController<Map<String, dynamic>> commands = new StreamController<Map<String, dynamic>>();
+          StreamController<Map<String, dynamic>> responses = new StreamController<Map<String, dynamic>>();
+          daemon = new Daemon(
+            commands.stream,
+            (Map<String, dynamic> result) => responses.add(result),
+            notifyingLogger: notifyingLogger,
+            logToStdout: true
+          );
+          printStatus('daemon.logMessage test');
+          // Service the event loop.
+          await new Future<Null>.value();
+        });
+      }, zoneSpecification: new ZoneSpecification(print: (Zone self, ZoneDelegate parent, Zone zone, String line) {
+        buffer.writeln(line);
+      }));
+
+      expect(buffer.toString().trim(), 'daemon.logMessage test');
     });
 
     _testUsingContext('daemon.shutdown', () async {

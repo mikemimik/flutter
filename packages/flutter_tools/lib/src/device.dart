@@ -9,12 +9,15 @@ import 'dart:math' as math;
 import 'android/android_device.dart';
 import 'application_package.dart';
 import 'base/common.dart';
+import 'base/context.dart';
 import 'base/os.dart';
 import 'base/utils.dart';
 import 'build_info.dart';
 import 'globals.dart';
 import 'ios/devices.dart';
 import 'ios/simulators.dart';
+
+DeviceManager get deviceManager => context[DeviceManager];
 
 /// A class to get all available devices.
 class DeviceManager {
@@ -164,11 +167,29 @@ abstract class Device {
 
   String get sdkNameAndVersion;
 
-  /// Get the log reader for this device.
-  DeviceLogReader get logReader;
+  /// Get a log reader for this device.
+  /// If [app] is specified, this will return a log reader specific to that
+  /// application. Otherwise, a global log reader will be returned.
+  DeviceLogReader getLogReader({ApplicationPackage app});
 
   /// Get the port forwarder for this device.
   DevicePortForwarder get portForwarder;
+
+  Future<int> forwardPort(int devicePort, {int hostPort}) async {
+    try {
+      hostPort = await portForwarder
+          .forward(devicePort, hostPort: hostPort)
+          .timeout(const Duration(seconds: 60), onTimeout: () {
+            throw new ToolExit(
+                'Timeout while atempting to foward device port $devicePort');
+          });
+      printTrace('Forwarded host port $hostPort to device port $devicePort');
+      return hostPort;
+    } catch (e) {
+      throw new ToolExit(
+          'Unable to forward host port $hostPort to device port $devicePort: $e');
+    }
+  }
 
   /// Clear the device's logs.
   void clearLogs();
@@ -294,22 +315,22 @@ class DebuggingOptions {
 }
 
 class LaunchResult {
-  LaunchResult.succeeded({ this.observatoryPort, this.diagnosticPort }) : started = true;
-  LaunchResult.failed() : started = false, observatoryPort = null, diagnosticPort = null;
+  LaunchResult.succeeded({ this.observatoryUri, this.diagnosticUri }) : started = true;
+  LaunchResult.failed() : started = false, observatoryUri = null, diagnosticUri = null;
 
-  bool get hasObservatory => observatoryPort != null;
+  bool get hasObservatory => observatoryUri != null;
 
   final bool started;
-  final int observatoryPort;
-  final int diagnosticPort;
+  final Uri observatoryUri;
+  final Uri diagnosticUri;
 
   @override
   String toString() {
     StringBuffer buf = new StringBuffer('started=$started');
-    if (observatoryPort != null)
-      buf.write(', observatory=$observatoryPort');
-    if (diagnosticPort != null)
-      buf.write(', diagnostic=$diagnosticPort');
+    if (observatoryUri != null)
+      buf.write(', observatory=$observatoryUri');
+    if (diagnosticUri != null)
+      buf.write(', diagnostic=$diagnosticUri');
     return buf.toString();
   }
 }

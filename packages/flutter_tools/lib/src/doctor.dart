@@ -5,14 +5,19 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
+import 'dart:convert' show UTF8;
 import 'package:path/path.dart' as path;
 
 import 'android/android_workflow.dart';
 import 'base/common.dart';
+import 'base/context.dart';
 import 'device.dart';
 import 'globals.dart';
 import 'ios/ios_workflow.dart';
 import 'version.dart';
+
+Doctor get doctor => context[Doctor];
 
 const Map<String, String> _osNames = const <String, String>{
   'macos': 'Mac OS',
@@ -289,8 +294,29 @@ abstract class IntelliJValidator extends DoctorValidator {
       ));
       return false;
     }
-    messages.add(new ValidationMessage('$title plugin installed'));
+    String version = _readPackageVersion(packageName);
+    messages.add(new ValidationMessage('$title plugin '
+        '${version != null ? "version $version" : "installed"}'));
     return true;
+  }
+
+  String _readPackageVersion(String packageName) {
+    String jarPath = packageName.endsWith('.jar')
+        ? path.join(pluginsPath, packageName)
+        : path.join(pluginsPath, packageName, 'lib', '$packageName.jar');
+    // TODO(danrubel) look for a better way to extract a single 2K file from the zip
+    // rather than reading the entire file into memory.
+    try {
+      Archive archive = new ZipDecoder().decodeBytes(new File(jarPath).readAsBytesSync());
+      ArchiveFile file = archive.findFile('META-INF/plugin.xml');
+      String content = UTF8.decode(file.content);
+      String versionStartTag = '<version>';
+      int start = content.indexOf(versionStartTag);
+      int end = content.indexOf('</version>', start);
+      return content.substring(start + versionStartTag.length, end);
+    } catch (_) {
+      return null;
+    }
   }
 
   bool hasPackage(String packageName) {
@@ -378,16 +404,25 @@ class IntelliJValidatorOnMac extends IntelliJValidator {
       });
     }
 
-    for (FileSystemEntity dir in new Directory('/Applications').listSync()) {
-      if (dir is Directory) {
-        checkForIntelliJ(dir);
-        if (!dir.path.endsWith('.app')) {
-          for (FileSystemEntity subdir in dir.listSync()) {
-            if (subdir is Directory)
-              checkForIntelliJ(subdir);
+    try {
+      for (FileSystemEntity dir in new Directory('/Applications').listSync()) {
+        if (dir is Directory) {
+          checkForIntelliJ(dir);
+          if (!dir.path.endsWith('.app')) {
+            for (FileSystemEntity subdir in dir.listSync()) {
+              if (subdir is Directory)
+                checkForIntelliJ(subdir);
+            }
           }
         }
       }
+    } on FileSystemException catch (e) {
+      validators.add(new ValidatorWithResult(
+          'Cannot determine if IntelliJ is installed',
+          new ValidationResult(ValidationType.missing, <ValidationMessage>[
+             new ValidationMessage.error(e.message),
+          ]),
+      ));
     }
     return validators;
   }
@@ -441,4 +476,13 @@ class DeviceValidator extends DoctorValidator {
     }
     return new ValidationResult(ValidationType.installed, messages);
   }
+}
+
+class ValidatorWithResult extends DoctorValidator {
+  final ValidationResult result;
+
+  ValidatorWithResult(String title, this.result) : super(title);
+
+  @override
+  Future<ValidationResult> validate() async => result;
 }

@@ -5,9 +5,9 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:meta/meta.dart';
 
 import 'button_bar.dart';
 import 'button.dart';
@@ -717,7 +717,7 @@ class _TimePickerDialogState extends State<_TimePickerDialog> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     header,
-                    new Flexible(child: picker),
+                    new Expanded(child: picker),
                     actions,
                   ]
                 )
@@ -735,7 +735,7 @@ class _TimePickerDialogState extends State<_TimePickerDialog> {
                       fit: FlexFit.loose,
                       child: new Column(
                         children: <Widget>[
-                          new Flexible(child: picker),
+                          new Expanded(child: picker),
                           actions,
                         ]
                       )

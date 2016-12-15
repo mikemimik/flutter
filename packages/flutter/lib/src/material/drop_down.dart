@@ -4,9 +4,9 @@
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:meta/meta.dart';
 
 import 'colors.dart';
 import 'debug.dart';
@@ -20,6 +20,7 @@ import 'material.dart';
 
 const Duration _kDropdownMenuDuration = const Duration(milliseconds: 300);
 const double _kMenuItemHeight = 48.0;
+const double _kDenseButtonHeight = 24.0;
 const EdgeInsets _kMenuVerticalPadding = const EdgeInsets.symmetric(vertical: 8.0);
 const EdgeInsets _kMenuHorizontalPadding = const EdgeInsets.symmetric(horizontal: 16.0);
 
@@ -51,8 +52,9 @@ class _DropdownMenuPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final double selectedItemOffset = selectedIndex * _kMenuItemHeight + _kMenuVerticalPadding.top;
     final Tween<double> top = new Tween<double>(
-      begin: (selectedIndex * _kMenuItemHeight + _kMenuVerticalPadding.top).clamp(0.0, size.height - _kMenuItemHeight),
+      begin: selectedItemOffset.clamp(0.0, size.height - _kMenuItemHeight),
       end: 0.0
     );
 
@@ -226,7 +228,7 @@ class _DropdownMenuRouteLayout<T> extends SingleChildLayoutDelegate {
   Offset getPositionForChild(Size size, Size childSize) {
     final double buttonTop = buttonRect.top;
     final double selectedItemOffset = selectedIndex * _kMenuItemHeight + _kMenuVerticalPadding.top;
-    double top = buttonTop - selectedItemOffset;
+    double top = (buttonTop - selectedItemOffset) - (_kMenuItemHeight - buttonRect.height) / 2.0;
     final double topPreferredLimit = _kMenuItemHeight;
     if (top < topPreferredLimit)
       top = math.min(buttonTop, topPreferredLimit);
@@ -403,34 +405,43 @@ class DropdownButtonHideUnderline extends InheritedWidget {
 ///
 /// See also:
 ///
-///  * [RaisedButton]
-///  * [FlatButton]
+///  * [DropdownButtonHideUnderline], which prevents its descendant drop down buttons
+///    from displaying their underlines.
+///  * [RaisedButton], [FlatButton], ordinary buttons that trigger a single action.
 ///  * <https://material.google.com/components/buttons.html#buttons-dropdown-buttons>
 class DropdownButton<T> extends StatefulWidget {
   /// Creates a dropdown button.
   ///
-  /// The [items] must have distinct values and [value] must be among them.
+  /// The [items] must have distinct values and if [value] isn't null it must be among them.
   ///
   /// The [elevation] and [iconSize] arguments must not be null (they both have
   /// defaults, so do not need to be specified).
   DropdownButton({
     Key key,
     @required this.items,
-    @required this.value,
+    this.value,
+    this.hint,
     @required this.onChanged,
     this.elevation: 8,
     this.style,
-    this.iconSize: 24.0
+    this.iconSize: 24.0,
+    this.isDense: false,
   }) : super(key: key) {
     assert(items != null);
-    assert(items.where((DropdownMenuItem<T> item) => item.value == value).length == 1);
+    assert(value == null ||
+      items.where((DropdownMenuItem<T> item) => item.value == value).length == 1);
   }
 
   /// The list of possible items to select among.
   final List<DropdownMenuItem<T>> items;
 
-  /// The currently selected item.
+  /// The currently selected item, or null if no item has been selected. If
+  /// value is null then the menu is popped up as if the first item was
+  /// selected.
   final T value;
+
+  /// Displayed if [value] is null.
+  final Widget hint;
 
   /// Called when the user selects an item.
   final ValueChanged<T> onChanged;
@@ -454,27 +465,36 @@ class DropdownButton<T> extends StatefulWidget {
   /// Defaults to 24.0.
   final double iconSize;
 
+  /// Reduce the button's height.
+  ///
+  /// By default this button's height is the same as its menu items' heights.
+  /// If isDense is true, the button's height is reduced by about half. This
+  /// can be useful when the button is embedded in a container that adds
+  /// its own decorations, like [InputContainer].
+  final bool isDense;
+
   @override
   _DropdownButtonState<T> createState() => new _DropdownButtonState<T>();
 }
 
 class _DropdownButtonState<T> extends State<DropdownButton<T>> {
+  int _selectedIndex;
+
   @override
   void initState() {
     super.initState();
     _updateSelectedIndex();
-    assert(_selectedIndex != null);
   }
 
-  @override
+ @override
   void didUpdateConfig(DropdownButton<T> oldConfig) {
-    if (config.items[_selectedIndex].value != config.value)
-      _updateSelectedIndex();
+    _updateSelectedIndex();
   }
-
-  int _selectedIndex;
 
   void _updateSelectedIndex() {
+    assert(config.value == null ||
+      config.items.where((DropdownMenuItem<T> item) => item.value == config.value).length == 1);
+    _selectedIndex = null;
     for (int itemIndex = 0; itemIndex < config.items.length; itemIndex++) {
       if (config.items[itemIndex].value == config.value) {
         _selectedIndex = itemIndex;
@@ -491,7 +511,7 @@ class _DropdownButtonState<T> extends State<DropdownButton<T>> {
     Navigator.push(context, new _DropdownRoute<T>(
       items: config.items,
       buttonRect: _kMenuHorizontalPadding.inflateRect(itemRect),
-      selectedIndex: _selectedIndex,
+      selectedIndex: _selectedIndex ?? 0,
       elevation: config.elevation,
       theme: Theme.of(context, shadowThemeOnly: true),
       style: _textStyle,
@@ -503,47 +523,74 @@ class _DropdownButtonState<T> extends State<DropdownButton<T>> {
     });
   }
 
+  // When isDense is true, reduce the height of this button from _kMenuItemHeight to
+  // _kDenseButtonHeight, but don't make it smaller than the text that it contains.
+  // Similarly, we don't reduce the height of the button so much that its icon
+  // would be clipped.
+  double get _denseButtonHeight {
+    return math.max(_textStyle.fontSize, math.max(config.iconSize, _kDenseButtonHeight));
+  }
+
   @override
   Widget build(BuildContext context) {
     assert(debugCheckHasMaterial(context));
+
+    // The width of the button and the menu are defined by the widest
+    // item and the width of the hint.
+    final List<Widget> items = new List<Widget>.from(config.items);
+    int hintIndex;
+    if (config.hint != null) {
+      hintIndex = items.length;
+      items.add(new DefaultTextStyle(
+        style: _textStyle.copyWith(color: Theme.of(context).hintColor),
+        child: new IgnorePointer(
+          child: config.hint,
+        ),
+      ));
+    }
+
     Widget result = new DefaultTextStyle(
       style: _textStyle,
-      child: new Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          // We use an IndexedStack to make sure we have enough width to show any
-          // possible item as the selected item without changing size.
-          new IndexedStack(
-            index: _selectedIndex,
-            alignment: FractionalOffset.centerLeft,
-            children: config.items
-          ),
-          new Icon(Icons.arrow_drop_down,
-            size: config.iconSize,
-            // These colors are not defined in the Material Design spec.
-            color: Theme.of(context).brightness == Brightness.light ? Colors.grey[700] : Colors.white70
-          )
-        ]
-      )
+      child: new SizedBox(
+        height: config.isDense ? _denseButtonHeight : null,
+        child: new Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            // If value is null (then _selectedIndex is null) then we display
+            // the hint or nothing at all.
+            new IndexedStack(
+              index: _selectedIndex ?? hintIndex,
+              alignment: FractionalOffset.centerLeft,
+              children: items,
+            ),
+            new Icon(Icons.arrow_drop_down,
+              size: config.iconSize,
+              // These colors are not defined in the Material Design spec.
+              color: Theme.of(context).brightness == Brightness.light ? Colors.grey[700] : Colors.white70
+            ),
+          ],
+        ),
+      ),
     );
 
     if (!DropdownButtonHideUnderline.at(context)) {
+      final double bottom = config.isDense ? 0.0 : 8.0;
       result = new Stack(
         children: <Widget>[
           result,
           new Positioned(
             left: 0.0,
             right: 0.0,
-            bottom: 8.0,
+            bottom: bottom,
             child: new Container(
               height: 1.0,
               decoration: const BoxDecoration(
                 border: const Border(bottom: const BorderSide(color: const Color(0xFFBDBDBD), width: 0.0))
-              )
-            )
-          )
-        ]
+              ),
+            ),
+          ),
+        ],
       );
     }
 

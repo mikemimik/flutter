@@ -14,7 +14,7 @@ import 'term.dart';
 enum _SymbolType { invalid, external, slack, error, dummy, }
 
 class _Symbol {
-  const _Symbol(this.type);
+  _Symbol(this.type);
 
   final _SymbolType type;
 }
@@ -773,7 +773,7 @@ class Solver {
   }
 
   Result _dualOptimize() {
-    while (_infeasibleRows.length != 0) {
+    while (_infeasibleRows.isNotEmpty) {
       _Symbol leaving = _infeasibleRows.removeLast();
       _Row row = _rows[leaving];
 

@@ -39,18 +39,21 @@ void main() {
       await devFS.update();
       expect(devFSOperations.contains('writeFile test bar/foo.txt'), isTrue);
     });
-    testUsingContext('modify existing file on local file system', () async {
-      File file = new File(path.join(basePath, filePath));
-      file.writeAsBytesSync(<int>[1, 2, 3, 4, 5, 6]);
-      await devFS.update();
-      expect(devFSOperations.contains('writeFile test bar/foo.txt'), isTrue);
-    });
     testUsingContext('add new file to local file system', () async {
       File file = new File(path.join(basePath, filePath2));
       await file.parent.create(recursive: true);
       file.writeAsBytesSync(<int>[1, 2, 3, 4, 5, 6, 7]);
       await devFS.update();
       expect(devFSOperations.contains('writeFile test foo/bar.txt'), isTrue);
+    });
+    testUsingContext('modify existing file on local file system', () async {
+      File file = new File(path.join(basePath, filePath));
+      // Set the last modified time to 5 seconds ago.
+      Process.runSync('touch', <String>['-A', '-05', file.path]);
+      await devFS.update();
+      await file.writeAsBytes(<int>[1, 2, 3, 4, 5, 6]);
+      await devFS.update();
+      expect(devFSOperations.contains('writeFile test bar/foo.txt'), isTrue);
     });
     testUsingContext('delete a file from the local file system', () async {
       File file = new File(path.join(basePath, filePath));

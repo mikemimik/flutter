@@ -4,54 +4,100 @@
 
 import 'dart:async';
 
+import 'base/common.dart';
+import 'base/os.dart';
 import 'device.dart';
+import 'globals.dart';
 
-/// Discover service protocol ports on devices.
+/// Discover service protocol on a device
+/// and forward the service protocol device port to the host.
 class ProtocolDiscovery {
   /// [logReader] - a [DeviceLogReader] to look for service messages in.
-  ProtocolDiscovery(DeviceLogReader logReader, String serviceName)
+  ProtocolDiscovery(DeviceLogReader logReader, String serviceName,
+      {this.portForwarder, this.hostPort, this.defaultHostPort})
       : _logReader = logReader, _serviceName = serviceName {
     assert(_logReader != null);
     _subscription = _logReader.logLines.listen(_onLine);
+    assert(portForwarder == null || defaultHostPort != null);
   }
+
+  factory ProtocolDiscovery.observatory(DeviceLogReader logReader,
+          {DevicePortForwarder portForwarder, int hostPort}) =>
+      new ProtocolDiscovery(logReader, kObservatoryService,
+          portForwarder: portForwarder,
+          hostPort: hostPort,
+          defaultHostPort: kDefaultObservatoryPort);
+
+  factory ProtocolDiscovery.diagnosticService(DeviceLogReader logReader,
+          {DevicePortForwarder portForwarder, int hostPort}) =>
+      new ProtocolDiscovery(logReader, kDiagnosticService,
+          portForwarder: portForwarder,
+          hostPort: hostPort,
+          defaultHostPort: kDefaultDiagnosticPort);
 
   static const String kObservatoryService = 'Observatory';
   static const String kDiagnosticService = 'Diagnostic server';
 
   final DeviceLogReader _logReader;
   final String _serviceName;
+  final DevicePortForwarder portForwarder;
+  int hostPort;
+  final int defaultHostPort;
 
-  Completer<int> _completer = new Completer<int>();
+  Completer<Uri> _completer = new Completer<Uri>();
   StreamSubscription<String> _subscription;
 
   /// The [Future] returned by this function will complete when the next service
-  /// protocol port is found.
-  Future<int> nextPort() => _completer.future;
+  /// Uri is found.
+  Future<Uri> nextUri() async {
+    Uri deviceUri = await _completer.future.timeout(
+      const Duration(seconds: 60), onTimeout: () {
+        throwToolExit('Timeout while attempting to retrieve Uri for $_serviceName');
+      }
+    );
+    printTrace('$_serviceName Uri on device: $deviceUri');
+    Uri hostUri;
+    if (portForwarder != null) {
+      int devicePort = deviceUri.port;
+      hostPort ??= await findPreferredPort(defaultHostPort);
+      hostPort = await portForwarder
+          .forward(devicePort, hostPort: hostPort)
+          .timeout(const Duration(seconds: 60), onTimeout: () {
+            throwToolExit('Timeout while atempting to foward device port $devicePort');
+          });
+      printTrace('Forwarded host port $hostPort to device port $devicePort');
+      hostUri = deviceUri.replace(port: hostPort);
+    } else {
+      hostUri = deviceUri;
+    }
+    printStatus('$_serviceName listening on $hostUri');
+    return hostUri;
+  }
 
   void cancel() {
     _subscription.cancel();
   }
 
   void _onLine(String line) {
-    int portNumber = 0;
-    if (line.contains('$_serviceName listening on http://')) {
+    Uri uri;
+    String prefix = '$_serviceName listening on ';
+    int index = line.indexOf(prefix + 'http://');
+    if (index >= 0) {
       try {
-        RegExp portExp = new RegExp(r"\d+.\d+.\d+.\d+:(\d+)");
-        String port = portExp.firstMatch(line).group(1);
-        portNumber = int.parse(port);
+        uri = Uri.parse(line.substring(index + prefix.length));
       } catch (_) {
         // Ignore errors.
       }
     }
-    if (portNumber != 0)
-      _located(portNumber);
+    if (uri != null)
+      _located(uri);
   }
 
-  void _located(int port) {
+  void _located(Uri uri) {
     assert(_completer != null);
     assert(!_completer.isCompleted);
 
-    _completer.complete(port);
-    _completer = new Completer<int>();
+    _completer.complete(uri);
+    _completer = new Completer<Uri>();
   }
 }

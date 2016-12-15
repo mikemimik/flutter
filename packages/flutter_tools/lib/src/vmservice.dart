@@ -8,13 +8,21 @@ import 'dart:io';
 
 import 'package:json_rpc_2/json_rpc_2.dart' as rpc;
 import 'package:json_rpc_2/error_code.dart' as rpc_error_code;
+import 'package:path/path.dart' as path;
+import 'package:stream_channel/stream_channel.dart';
 import 'package:web_socket_channel/io.dart';
 
 import 'globals.dart';
 
+/// The default VM service request timeout.
+const Duration kDefaultRequestTimeout = const Duration(seconds: 10);
+
+/// Used for RPC requests that may take a long time.
+const Duration kLongRequestTimeout = const Duration(minutes: 1);
+
 /// A connection to the Dart VM Service.
 class VMService {
-  VMService._(this.peer, this.port, this.httpAddress) {
+  VMService._(this.peer, this.httpAddress, this.wsAddress, this._requestTimeout) {
     _vm = new VM._empty(this);
 
     peer.registerMethod('streamNotify', (rpc.Parameters event) {
@@ -22,23 +30,27 @@ class VMService {
     });
   }
 
-  /// Connect to '127.0.0.1' at [port].
-  static Future<VMService> connect(int port) async {
-    Uri uri = new Uri(scheme: 'ws', host: '127.0.0.1', port: port, path: 'ws');
+  /// Connect to a Dart VM Service at [httpUri].
+  ///
+  /// Requests made via the returns [VMService] time out after [requestTimeout]
+  /// amount of time, which is [kDefaultRequestTimeout] by default.
+  static Future<VMService> connect(Uri httpUri, {Duration requestTimeout: kDefaultRequestTimeout}) async {
+    Uri wsUri = httpUri.replace(scheme: 'ws', path: path.join(httpUri.path, 'ws'));
     WebSocket ws;
     try {
-      ws = await WebSocket.connect(uri.toString());
+      ws = await WebSocket.connect(wsUri.toString());
     } catch (e) {
-      return new Future<VMService>.error('Failed to connect to $uri\n  $e');
+      return new Future<VMService>.error('Failed to connect to $wsUri\n  $e');
     }
-    rpc.Peer peer = new rpc.Peer(new IOWebSocketChannel(ws).cast());
+    rpc.Peer peer = new rpc.Peer.withoutJson(jsonDocument.bind(new IOWebSocketChannel(ws).cast()));
     peer.listen();
-    Uri httpAddress = new Uri(scheme: 'http', host: '127.0.0.1', port: port);
-    return new VMService._(peer, port, httpAddress);
+    return new VMService._(peer, httpUri, wsUri, requestTimeout);
   }
+
   final Uri httpAddress;
-  final int port;
+  final Uri wsAddress;
   final rpc.Peer peer;
+  final Duration _requestTimeout;
 
   VM _vm;
   /// The singleton [VM] object. Owns [Isolate] and [FlutterView] objects.
@@ -557,13 +569,20 @@ class VM extends ServiceObjectOwner {
 
   /// Invoke the RPC and return the raw response.
   Future<Map<String, dynamic>> invokeRpcRaw(
-      String method, [Map<String, dynamic> params]) async {
+      String method, [Map<String, dynamic> params, Duration timeout]) async {
     if (params == null) {
       params = <String, dynamic>{};
     }
-    Map<String, dynamic> result =
-        await _vmService.peer.sendRequest(method, params);
-    return result;
+
+    try {
+      Map<String, dynamic> result = await _vmService.peer
+          .sendRequest(method, params)
+          .timeout(timeout ?? _vmService._requestTimeout);
+      return result;
+    } on TimeoutException catch(_) {
+      printError('Request to Dart VM Service timed out: $method($params)');
+      rethrow;
+    }
   }
 
   /// Invoke the RPC and return a ServiceObject response.
@@ -660,7 +679,7 @@ class VM extends ServiceObjectOwner {
   }
 
   Future<Map<String, dynamic>> getVMTimeline() {
-    return invokeRpcRaw('_getVMTimeline', <String, dynamic> {});
+    return invokeRpcRaw('_getVMTimeline', <String, dynamic> {}, kLongRequestTimeout);
   }
 
   Future<Null> refreshViews() async {
@@ -723,7 +742,7 @@ class Isolate extends ServiceObjectOwner {
 
   /// Invoke the RPC and return the raw response.
   Future<Map<String, dynamic>> invokeRpcRaw(
-      String method, [Map<String, dynamic> params]) {
+      String method, [Map<String, dynamic> params, Duration timeout]) {
     // Inject the 'isolateId' parameter.
     if (params == null) {
       params = <String, dynamic>{
@@ -732,7 +751,7 @@ class Isolate extends ServiceObjectOwner {
     } else {
       params['isolateId'] = id;
     }
-    return vm.invokeRpcRaw(method, params);
+    return vm.invokeRpcRaw(method, params, timeout);
   }
 
   /// Invoke the RPC and return a ServiceObject response.
@@ -759,11 +778,21 @@ class Isolate extends ServiceObjectOwner {
 
   static final int kIsolateReloadBarred = 1005;
 
-  Future<Map<String, dynamic>> reloadSources({ bool pause: false }) async {
+  Future<Map<String, dynamic>> reloadSources(
+      { bool pause: false,
+        String rootLibPath,
+        String packagesPath}) async {
     try {
-      Map<String, dynamic> response = await invokeRpcRaw(
-        '_reloadSources', <String, dynamic>{ 'pause': pause }
-      );
+      Map<String, dynamic> arguments = <String, dynamic>{
+        'pause': pause
+      };
+      if (rootLibPath != null) {
+        arguments['rootLibUri'] = rootLibPath;
+      }
+      if (packagesPath != null) {
+        arguments['packagesUri'] = packagesPath;
+      }
+      Map<String, dynamic> response = await invokeRpcRaw('_reloadSources', arguments);
       return response;
     } on rpc.RpcException catch(e) {
       return new Future<Map<String, dynamic>>.error(<String, dynamic>{
@@ -782,9 +811,9 @@ class Isolate extends ServiceObjectOwner {
       String method, [Map<String, dynamic> params]) async {
     try {
       return await invokeRpcRaw(method, params);
-    } catch (e) {
+    } on rpc.RpcException catch (e) {
       // If an application is not using the framework
-      if (_isMethodNotFoundException(e))
+      if (e.code == rpc_error_code.METHOD_NOT_FOUND)
         return null;
       rethrow;
     }
@@ -800,39 +829,11 @@ class Isolate extends ServiceObjectOwner {
     return invokeFlutterExtensionRpcRaw('ext.flutter.debugDumpRenderTree');
   }
 
-  // Loader page extension methods.
-
-  void flutterLoaderShowMessage(String message) {
-    // Invoke loaderShowMessage; ignore any returned errors.
-    invokeRpcRaw('ext.flutter.loaderShowMessage', <String, dynamic> {
-      'value': message
-    }).catchError((dynamic error) => null);
-  }
-
-  void flutterLoaderShowExplanation(String explanation) {
-    // Invoke loaderShowExplanation; ignore any returned errors.
-    invokeRpcRaw('ext.flutter.loaderShowExplanation', <String, dynamic> {
-      'value': explanation
-    }).catchError((dynamic error) => null);
-  }
-
-  void flutterLoaderSetProgress(double progress) {
-    // Invoke loaderSetProgress; ignore any returned errors.
-    invokeRpcRaw('ext.flutter.loaderSetProgress', <String, dynamic>{
-      'loaderSetProgress': progress
-    }).catchError((dynamic error) => null);
-  }
-
-  void flutterLoaderSetProgressMax(double max) {
-    // Invoke loaderSetProgressMax; ignore any returned errors.
-    invokeRpcRaw('ext.flutter.loaderSetProgressMax', <String, dynamic>{
-      'loaderSetProgressMax': max
-    }).catchError((dynamic error) => null);
-  }
-
-  static bool _isMethodNotFoundException(dynamic e) {
-    return (e is rpc.RpcException) &&
-           (e.code == rpc_error_code.METHOD_NOT_FOUND);
+  Future<Map<String, dynamic>> flutterToggleDebugPaintSizeEnabled() async {
+    Map<String, dynamic> state = await invokeFlutterExtensionRpcRaw('ext.flutter.debugPaint');
+    if (state != null && state.containsKey('enabled') && state['enabled'] is bool)
+      state = await invokeFlutterExtensionRpcRaw('ext.flutter.debugPaint', <String, dynamic>{ 'enabled': !state['enabled'] });
+    return state;
   }
 
   // Reload related extension methods.

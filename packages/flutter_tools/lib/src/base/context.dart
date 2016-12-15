@@ -4,26 +4,23 @@
 
 import 'dart:async';
 
-final AppContext _defaultContext = new AppContext();
-
 typedef void ErrorHandler(dynamic error, StackTrace stackTrace);
 
 /// A singleton for application functionality. This singleton can be different
 /// on a per-Zone basis.
-AppContext get context {
-  AppContext currentContext = Zone.current['context'];
-  return currentContext == null ? _defaultContext : currentContext;
-}
+AppContext get context => Zone.current['context'];
 
 class AppContext {
   Map<Type, dynamic> _instances = <Type, dynamic>{};
   Zone _zone;
 
+  AppContext() : _zone = Zone.current;
+
   bool isSet(Type type) {
     if (_instances.containsKey(type))
       return true;
 
-    AppContext parent = _calcParent(Zone.current);
+    AppContext parent = _calcParent(_zone);
     return parent != null ? parent.isSet(type) : false;
   }
 
@@ -31,7 +28,7 @@ class AppContext {
     if (_instances.containsKey(type))
       return _instances[type];
 
-    AppContext parent = _calcParent(_zone ?? Zone.current);
+    AppContext parent = _calcParent(_zone);
     return parent?.getVariable(type);
   }
 
@@ -41,25 +38,28 @@ class AppContext {
 
   dynamic operator[](Type type) => getVariable(type);
 
-  void operator[]=(Type type, dynamic instance) => setVariable(type, instance);
-
-  AppContext _calcParent(Zone zone) {
-    if (this == _defaultContext)
-      return null;
-
-    Zone parentZone = zone.parent;
-    if (parentZone == null)
-      return _defaultContext;
-
-    AppContext deps = parentZone['context'];
-    if (deps == this) {
-      return _calcParent(parentZone);
-    } else {
-      return deps != null ? deps : _defaultContext;
+  dynamic putIfAbsent(Type type, dynamic ifAbsent()) {
+    dynamic value = getVariable(type);
+    if (value != null) {
+      return value;
     }
+    value = ifAbsent();
+    setVariable(type, value);
+    return value;
   }
 
-  dynamic runInZone(dynamic method(), {
+  AppContext _calcParent(Zone zone) {
+    Zone parentZone = zone.parent;
+    if (parentZone == null)
+      return null;
+
+    AppContext parentContext = parentZone['context'];
+    return parentContext == this
+        ? _calcParent(parentZone)
+        : parentContext;
+  }
+
+  Future<dynamic> runInZone(dynamic method(), {
     ZoneBinaryCallback<dynamic, dynamic, StackTrace> onError
   }) {
     return runZoned(
@@ -69,12 +69,13 @@ class AppContext {
     );
   }
 
-  dynamic _run(dynamic method()) async {
+  Future<dynamic> _run(dynamic method()) async {
+    Zone previousZone = _zone;
     try {
       _zone = Zone.current;
       return await method();
     } finally {
-      _zone = null;
+      _zone = previousZone;
     }
   }
 }

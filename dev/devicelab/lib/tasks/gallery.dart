@@ -6,22 +6,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:meta/meta.dart';
-
 import '../framework/adb.dart';
 import '../framework/framework.dart';
 import '../framework/utils.dart';
 
-TaskFunction createGalleryTransitionTest({ @required DeviceOperatingSystem os }) {
-  return new GalleryTransitionTest(os: os);
+TaskFunction createGalleryTransitionTest() {
+  return new GalleryTransitionTest();
 }
 
 class GalleryTransitionTest {
-  GalleryTransitionTest({ this.os }) {
-    deviceOperatingSystem = os;
-  }
-
-  final DeviceOperatingSystem os;
 
   Future<TaskResult> call() async {
     Device device = await devices.workingDevice;
@@ -32,7 +25,7 @@ class GalleryTransitionTest {
     await inDirectory(galleryDirectory, () async {
       await flutter('packages', options: <String>['get']);
 
-      if (os == DeviceOperatingSystem.ios) {
+      if (deviceOperatingSystem == DeviceOperatingSystem.ios) {
         // This causes an Xcode project to be created.
         await flutter('build', options: <String>['ios', '--profile']);
       }
@@ -68,6 +61,9 @@ class GalleryTransitionTest {
       'average_frame_build_time_millis',
       'worst_frame_build_time_millis',
       'missed_frame_build_budget_count',
+      'average_frame_rasterizer_time_millis',
+      'worst_frame_rasterizer_time_millis',
+      'missed_frame_rasterizer_budget_count',
     ]);
   }
 }

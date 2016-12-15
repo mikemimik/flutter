@@ -5,11 +5,11 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:meta/meta.dart';
 
 import 'app_bar.dart';
 import 'colors.dart';
@@ -402,7 +402,7 @@ class _Tab extends StatelessWidget {
 
     Container centeredLabel = new Container(
       child: new Center(child: labelContent, widthFactor: 1.0, heightFactor: 1.0),
-      constraints: new BoxConstraints(minWidth: _kMinTabWidth),
+      constraints: const BoxConstraints(minWidth: _kMinTabWidth),
       padding: _kTabLabelPadding
     );
 
@@ -430,9 +430,8 @@ class _TabsScrollBehavior extends BoundedBehavior {
     if (!isScrollable)
       return null;
 
-    double velocityPerSecond = velocity * 1000.0;
     return new BoundedFrictionSimulation(
-      _kTabBarScrollDrag, position, velocityPerSecond, minScrollOffset, maxScrollOffset
+      _kTabBarScrollDrag, position, velocity, minScrollOffset, maxScrollOffset
     );
   }
 
@@ -477,7 +476,7 @@ class TabBarSelection<T> extends StatefulWidget {
     this.onChanged,
     @required this.child
   }) : super(key: key)  {
-    assert(values != null && values.length > 0);
+    assert(values != null && values.isNotEmpty);
     assert(new Set<T>.from(values).length == values.length);
     assert(value == null ? true : values.where((T e) => e == value).length == 1);
     assert(child != null);
@@ -512,7 +511,7 @@ class TabBarSelection<T> extends StatefulWidget {
   /// TabBarSelectionState<Foo> tabState = TabBarSelection.of/*<Foo>*/(context);
   /// ```
   static TabBarSelectionState<dynamic/*=T*/> of/*<T>*/(BuildContext context) {
-    return context.ancestorStateOfType(new TypeMatcher<TabBarSelectionState<dynamic/*=T*/>>());
+    return context.ancestorStateOfType(const TypeMatcher<TabBarSelectionState<dynamic/*=T*/>>());
   }
 
   @override
@@ -848,7 +847,7 @@ class _TabBarState<T> extends ScrollableState<TabBar<T>> implements TabBarSelect
 
   @override
   void handleStatusChange(AnimationStatus status) {
-    if (config.labels.length == 0)
+    if (config.labels.isEmpty)
       return;
 
     if (_valueIsChanging && status == AnimationStatus.completed) {
@@ -862,7 +861,7 @@ class _TabBarState<T> extends ScrollableState<TabBar<T>> implements TabBarSelect
 
   @override
   void handleProgressChange() {
-    if (config.labels.length == 0 || _selection == null)
+    if (config.labels.isEmpty || _selection == null)
       return;
 
     if (_lastSelectedIndex != _selection.index) {
@@ -1302,7 +1301,7 @@ class TabPageSelector<T> extends StatelessWidget {
     return new Container(
       width: 12.0,
       height: 12.0,
-      margin: new EdgeInsets.all(4.0),
+      margin: const EdgeInsets.all(4.0),
       decoration: new BoxDecoration(
         backgroundColor: background,
         border: new Border.all(color: selectedColor.end),

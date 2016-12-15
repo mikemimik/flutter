@@ -81,7 +81,7 @@ class VendorItem extends StatelessWidget {
             )
           ),
           new SizedBox(width: 8.0),
-          new Flexible(
+          new Expanded(
             child: new Text(vendor.name, style: ShrineTheme.of(context).vendorItemStyle)
           )
         ]
@@ -192,7 +192,7 @@ class FeatureItem extends StatelessWidget {
                 child: new FeaturePriceItem(product: product)
               )
             ),
-            new Flexible(
+            new Expanded(
               child: new CustomMultiChildLayout(
                 delegate: new FeatureLayout(),
                 children: <Widget>[
@@ -293,7 +293,6 @@ class ShrineHome extends StatefulWidget {
 
 class _ShrineHomeState extends State<ShrineHome> {
   static final GlobalKey<ScaffoldState> scaffoldKey = new GlobalKey<ScaffoldState>(debugLabel: 'Shrine Home');
-  static final GlobalKey<ScrollableState> scrollableKey = new GlobalKey<ScrollableState>();
   static final GridDelegate gridDelegate = new ShrineGridDelegate();
 
   Future<Null> showOrderPage(Product product) async {
@@ -318,11 +317,9 @@ class _ShrineHomeState extends State<ShrineHome> {
     final Product featured = _products.firstWhere((Product product) => product.featureDescription != null);
     return new ShrinePage(
       scaffoldKey: scaffoldKey,
-      scrollableKey: scrollableKey,
       products: _products,
       shoppingCart: _shoppingCart,
       body: new ScrollableViewport(
-        scrollableKey: scrollableKey,
         child: new RepaintBoundary(
           child: new Column(
             children: <Widget>[

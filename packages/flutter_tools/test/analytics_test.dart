@@ -9,7 +9,6 @@ import 'package:flutter_tools/src/cache.dart';
 import 'package:flutter_tools/src/commands/create.dart';
 import 'package:flutter_tools/src/commands/config.dart';
 import 'package:flutter_tools/src/commands/doctor.dart';
-import 'package:flutter_tools/src/globals.dart';
 import 'package:flutter_tools/src/usage.dart';
 import 'package:test/test.dart';
 
@@ -19,16 +18,13 @@ import 'src/context.dart';
 void main() {
   group('analytics', () {
     Directory temp;
-    bool wasEnabled;
 
     setUp(() {
       Cache.flutterRoot = '../..';
-      wasEnabled = flutterUsage.enabled;
       temp = Directory.systemTemp.createTempSync('flutter_tools');
     });
 
     tearDown(() {
-      flutterUsage.enabled = wasEnabled;
       temp.deleteSync(recursive: true);
     });
 
@@ -53,8 +49,8 @@ void main() {
       runner = createTestCommandRunner(doctorCommand);
       await runner.run(<String>['doctor']);
       expect(count, 0);
-    }, overrides: <Type, dynamic>{
-      Usage: new Usage()
+    }, overrides: <Type, Generator>{
+      Usage: () => new Usage(),
     });
 
     // Ensure we con't send for the 'flutter config' command.
@@ -71,8 +67,8 @@ void main() {
       flutterUsage.enabled = true;
       await runner.run(<String>['config']);
       expect(count, 0);
-    }, overrides: <Type, dynamic>{
-      Usage: new Usage()
+    }, overrides: <Type, Generator>{
+      Usage: () => new Usage(),
     });
   });
 
@@ -83,8 +79,11 @@ void main() {
 
       await createTestCommandRunner().run(<String>['--version']);
       expect(count, 0);
-    }, overrides: <Type, dynamic>{
-      Usage: new Usage(settingsName: 'flutter_bot_test', versionOverride: 'dev/unknown')
+    }, overrides: <Type, Generator>{
+      Usage: () => new Usage(
+        settingsName: 'flutter_bot_test',
+        versionOverride: 'dev/unknown',
+      ),
     });
   });
 }

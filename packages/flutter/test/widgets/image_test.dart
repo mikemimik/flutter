@@ -5,10 +5,11 @@
 import 'dart:async';
 import 'dart:ui' as ui show Image;
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('Verify Image resets its RenderImage when changing providers', (WidgetTester tester) async {
@@ -174,13 +175,13 @@ void main() {
     await tester.pumpWidget(
       new MediaQuery(
         key: mediaQueryKey1,
-        data: new MediaQueryData(
+        data: const MediaQueryData(
           devicePixelRatio: 10.0,
           padding: EdgeInsets.zero,
         ),
         child: new MediaQuery(
           key: mediaQueryKey2,
-          data: new MediaQueryData(
+          data: const MediaQueryData(
             devicePixelRatio: 5.0,
             padding: EdgeInsets.zero,
           ),
@@ -200,13 +201,13 @@ void main() {
     await tester.pumpWidget(
       new MediaQuery(
         key: mediaQueryKey2,
-        data: new MediaQueryData(
+        data: const MediaQueryData(
           devicePixelRatio: 5.0,
           padding: EdgeInsets.zero,
         ),
         child: new MediaQuery(
           key: mediaQueryKey1,
-          data: new MediaQueryData(
+          data: const MediaQueryData(
             devicePixelRatio: 10.0,
             padding: EdgeInsets.zero,
           ),
@@ -234,7 +235,7 @@ void main() {
         children: <Widget> [
           new MediaQuery(
             key: mediaQueryKey2,
-            data: new MediaQueryData(
+            data: const MediaQueryData(
               devicePixelRatio: 5.0,
               padding: EdgeInsets.zero,
             ),
@@ -245,7 +246,7 @@ void main() {
           ),
           new MediaQuery(
             key: mediaQueryKey1,
-            data: new MediaQueryData(
+            data: const MediaQueryData(
               devicePixelRatio: 10.0,
               padding: EdgeInsets.zero,
             ),
@@ -262,7 +263,7 @@ void main() {
         children: <Widget> [
           new MediaQuery(
             key: mediaQueryKey2,
-            data: new MediaQueryData(
+            data: const MediaQueryData(
               devicePixelRatio: 5.0,
               padding: EdgeInsets.zero,
             ),
@@ -270,7 +271,7 @@ void main() {
           ),
           new MediaQuery(
             key: mediaQueryKey1,
-            data: new MediaQueryData(
+            data: const MediaQueryData(
               devicePixelRatio: 10.0,
               padding: EdgeInsets.zero,
             ),

@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'package:flutter_test/flutter_test.dart' hide TypeMatcher;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart' hide TypeMatcher;
 
 class Foo extends StatefulWidget {
   @override
@@ -25,43 +26,43 @@ class FooState extends State<Foo> {
             children: <Widget>[
               new GestureDetector(
                 onTap: () {
-                  setState(() {});
+                  setState(() { /* this is needed to trigger the original bug this is regression-testing */ });
                   scrollableKey.currentState.scrollBy(200.0, duration: const Duration(milliseconds: 500));
                 },
                 child: new DecoratedBox(
-                  decoration: new BoxDecoration(backgroundColor: const Color(0)),
-                  child: new SizedBox(
+                  decoration: const BoxDecoration(backgroundColor: const Color(0)),
+                  child: const SizedBox(
                     height: 200.0,
                   ),
                 )
               ),
               new DecoratedBox(
-                decoration: new BoxDecoration(backgroundColor: const Color(0)),
-                child: new SizedBox(
+                decoration: const BoxDecoration(backgroundColor: const Color(0)),
+                child: const SizedBox(
                   height: 200.0,
                 ),
               ),
               new DecoratedBox(
-                decoration: new BoxDecoration(backgroundColor: const Color(0)),
-                child: new SizedBox(
+                decoration: const BoxDecoration(backgroundColor: const Color(0)),
+                child: const SizedBox(
                   height: 200.0,
                 ),
               ),
               new DecoratedBox(
-                decoration: new BoxDecoration(backgroundColor: const Color(0)),
-                child: new SizedBox(
+                decoration: const BoxDecoration(backgroundColor: const Color(0)),
+                child: const SizedBox(
                   height: 200.0,
                 ),
               ),
               new DecoratedBox(
-                decoration: new BoxDecoration(backgroundColor: const Color(0)),
-                child: new SizedBox(
+                decoration: const BoxDecoration(backgroundColor: const Color(0)),
+                child: const SizedBox(
                   height: 200.0,
                 ),
               ),
               new DecoratedBox(
-                decoration: new BoxDecoration(backgroundColor: const Color(0)),
-                child: new SizedBox(
+                decoration: const BoxDecoration(backgroundColor: const Color(0)),
+                child: const SizedBox(
                   height: 200.0,
                 ),
               ),

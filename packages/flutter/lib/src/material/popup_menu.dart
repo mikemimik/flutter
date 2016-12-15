@@ -4,8 +4,8 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:meta/meta.dart';
 
 import 'constants.dart';
 import 'divider.dart';
@@ -285,12 +285,12 @@ class _PopupMenu<T> extends StatelessWidget {
       ));
     }
 
-    final CurveTween opacity = new CurveTween(curve: new Interval(0.0, 1.0 / 3.0));
+    final CurveTween opacity = new CurveTween(curve: const Interval(0.0, 1.0 / 3.0));
     final CurveTween width = new CurveTween(curve: new Interval(0.0, unit));
     final CurveTween height = new CurveTween(curve: new Interval(0.0, unit * route.items.length));
 
     Widget child = new ConstrainedBox(
-      constraints: new BoxConstraints(
+      constraints: const BoxConstraints(
         minWidth: _kMenuMinWidth,
         maxWidth: _kMenuMaxWidth
       ),
@@ -388,7 +388,7 @@ class _PopupMenuRoute<T> extends PopupRoute<T> {
     return new CurvedAnimation(
       parent: super.createAnimation(),
       curve: Curves.linear,
-      reverseCurve: new Interval(0.0, _kMenuCloseIntervalEnd)
+      reverseCurve: const Interval(0.0, _kMenuCloseIntervalEnd)
     );
   }
 
@@ -445,7 +445,7 @@ Future<dynamic/*=T*/> showMenu/*<T>*/({
   int elevation: 8
 }) {
   assert(context != null);
-  assert(items != null && items.length > 0);
+  assert(items != null && items.isNotEmpty);
   return Navigator.push(context, new _PopupMenuRoute<dynamic/*=T*/>(
     position: position,
     items: items,

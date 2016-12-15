@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as path;
 
+import 'application_package.dart';
 import 'base/logger.dart';
 import 'build_info.dart';
 import 'device.dart';
@@ -60,15 +61,19 @@ abstract class ResidentRunner {
   Future<Null> _debugDumpApp() async {
     if (vmService != null)
       await vmService.vm.refreshViews();
-
     await currentView.uiIsolate.flutterDebugDumpApp();
   }
 
   Future<Null> _debugDumpRenderTree() async {
     if (vmService != null)
       await vmService.vm.refreshViews();
-
     await currentView.uiIsolate.flutterDebugDumpRenderTree();
+  }
+
+  Future<Null> _debugToggleDebugPaintSizeEnabled() async {
+    if (vmService != null)
+      await vmService.vm.refreshViews();
+    await currentView.uiIsolate.flutterToggleDebugPaintSizeEnabled();
   }
 
   void registerSignalHandlers() {
@@ -86,21 +91,32 @@ abstract class ResidentRunner {
       return;
     if (!supportsRestart)
       return;
-    ProcessSignal.SIGUSR1.watch().listen((ProcessSignal signal) async {
-      printStatus('Caught SIGUSR1');
-      await restart(fullRestart: false);
-    });
-    ProcessSignal.SIGUSR2.watch().listen((ProcessSignal signal) async {
-      printStatus('Caught SIGUSR2');
-      await restart(fullRestart: true);
-    });
+    ProcessSignal.SIGUSR1.watch().listen(_handleSignal);
+    ProcessSignal.SIGUSR2.watch().listen(_handleSignal);
   }
 
-  Future<Null> startEchoingDeviceLog() async {
+  bool _processingSignal = false;
+  Future<Null> _handleSignal(ProcessSignal signal) async {
+    if (_processingSignal) {
+      printTrace('Ignoring signal: "$signal" because we are busy.');
+      return;
+    }
+    _processingSignal = true;
+
+    final bool fullRestart = signal == ProcessSignal.SIGUSR2;
+
+    try {
+      await restart(fullRestart: fullRestart);
+    } finally {
+      _processingSignal = false;
+    }
+  }
+
+  Future<Null> startEchoingDeviceLog(ApplicationPackage app) async {
     if (_loggingSubscription != null) {
       return;
     }
-    _loggingSubscription = device.logReader.logLines.listen((String line) {
+    _loggingSubscription = device.getLogReader(app: app).logLines.listen((String line) {
       if (!line.contains('Observatory listening on http') &&
           !line.contains('Diagnostic server listening on http'))
         printStatus(line);
@@ -114,12 +130,12 @@ abstract class ResidentRunner {
     _loggingSubscription = null;
   }
 
-  Future<Null> connectToServiceProtocol(int port) async {
+  Future<Null> connectToServiceProtocol(Uri uri) async {
     if (!debuggingOptions.debuggingEnabled) {
       return new Future<Null>.error('Error the service protocol is not enabled.');
     }
-    vmService = await VMService.connect(port);
-    printTrace('Connected to service protocol on port $port');
+    vmService = await VMService.connect(uri);
+    printTrace('Connected to service protocol: $uri');
     await vmService.getVM();
 
     // Refresh the view list.
@@ -153,6 +169,11 @@ abstract class ResidentRunner {
         return true;
       await _debugDumpRenderTree();
       return true;
+    } else if (lower == 'p') {
+      if (!supportsServiceProtocol)
+        return true;
+      await _debugToggleDebugPaintSizeEnabled();
+      return true;
     } else if (lower == 'q' || character == AnsiTerminal.KEY_F10) {
       // F10, exit
       await stop();
@@ -162,10 +183,21 @@ abstract class ResidentRunner {
     return false;
   }
 
+  bool _processingTerminalRequest = false;
+
   Future<Null> processTerminalInput(String command) async {
-    bool handled = await _commonTerminalInputHandler(command);
-    if (!handled)
-      await handleTerminalCommand(command);
+    if (_processingTerminalRequest) {
+      printTrace('Ignoring terminal input: "$command" because we are busy.');
+      return;
+    }
+    _processingTerminalRequest = true;
+    try {
+      bool handled = await _commonTerminalInputHandler(command);
+      if (!handled)
+        await handleTerminalCommand(command);
+    } finally {
+      _processingTerminalRequest = false;
+    }
   }
 
   void appFinished() {
@@ -213,12 +245,19 @@ abstract class ResidentRunner {
     appFinished();
   }
 
+  /// Called to print help to the terminal.
+  void printHelp({ @required bool details });
+
+  void printHelpDetails() {
+    printStatus('To dump the widget hierarchy of the app (debugDumpApp), press "w".');
+    printStatus('To dump the rendering tree of the app (debugDumpRenderTree), press "t".');
+    printStatus('To toggle the display of construction lines (debugPaintSizeEnabled), press "p".');
+  }
+
   /// Called when a signal has requested we exit.
   Future<Null> cleanupAfterSignal();
   /// Called right before we exit.
   Future<Null> cleanupAtFinish();
-  /// Called to print help to the terminal.
-  void printHelp({ @required bool details });
   /// Called when the runner should handle a terminal command.
   Future<Null> handleTerminalCommand(String code);
 }
@@ -259,8 +298,11 @@ String getMissingPackageHintForPlatform(TargetPlatform platform) {
 }
 
 class DebugConnectionInfo {
-  DebugConnectionInfo(this.port, { this.baseUri });
+  DebugConnectionInfo({ this.httpUri, this.wsUri, this.baseUri });
 
-  final int port;
+  // TODO(danrubel): the httpUri field should be removed as part of
+  // https://github.com/flutter/flutter/issues/7050
+  final Uri httpUri;
+  final Uri wsUri;
   final String baseUri;
 }

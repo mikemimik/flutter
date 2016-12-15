@@ -4,7 +4,7 @@
 
 import 'dart:math' as math;
 
-import 'package:meta/meta.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/rendering.dart';
 
@@ -69,7 +69,7 @@ class PaginatedDataTable extends StatefulWidget {
   }) : super(key: key) {
     assert(header != null);
     assert(columns != null);
-    assert(columns.length > 0);
+    assert(columns.isNotEmpty);
     assert(sortColumnIndex == null || (sortColumnIndex >= 0 && sortColumnIndex < columns.length));
     assert(sortAscending != null);
     assert(rowsPerPage != null);
@@ -273,7 +273,7 @@ class PaginatedDataTableState extends State<PaginatedDataTable> {
     final List<Widget> headerWidgets = <Widget>[];
     double leftPadding = 24.0;
     if (_selectedRowCount == 0) {
-      headerWidgets.add(new Flexible(child: config.header));
+      headerWidgets.add(new Expanded(child: config.header));
       if (config.header is ButtonBar) {
         // We adjust the padding when a button bar is present, because the
         // ButtonBar introduces 2 pixels of outside padding, plus 2 pixels
@@ -285,16 +285,16 @@ class PaginatedDataTableState extends State<PaginatedDataTable> {
       }
     } else if (_selectedRowCount == 1) {
       // TODO(ianh): Real l10n.
-      headerWidgets.add(new Flexible(child: new Text('1 item selected')));
+      headerWidgets.add(new Expanded(child: new Text('1 item selected')));
     } else {
-      headerWidgets.add(new Flexible(child: new Text('$_selectedRowCount items selected')));
+      headerWidgets.add(new Expanded(child: new Text('$_selectedRowCount items selected')));
     }
     if (config.actions != null) {
       headerWidgets.addAll(
         config.actions.map/*<Widget>*/((Widget widget) {
           return new Padding(
             // 8.0 is the default padding of an icon button
-            padding: new EdgeInsets.only(left: 24.0 - 8.0 * 2.0),
+            padding: const EdgeInsets.only(left: 24.0 - 8.0 * 2.0),
             child: widget
           );
         }).toList()
@@ -363,7 +363,7 @@ class PaginatedDataTableState extends State<PaginatedDataTable> {
                                          : themeData.textTheme.title.copyWith(fontWeight: FontWeight.w400),
             child: new IconTheme.merge(
               context: context,
-              data: new IconThemeData(
+              data: const IconThemeData(
                 opacity: 0.54
               ),
               child: new ButtonTheme.bar(
@@ -399,7 +399,7 @@ class PaginatedDataTableState extends State<PaginatedDataTable> {
             style: footerTextStyle,
             child: new IconTheme.merge(
               context: context,
-              data: new IconThemeData(
+              data: const IconThemeData(
                 opacity: 0.54
               ),
               child: new Container(

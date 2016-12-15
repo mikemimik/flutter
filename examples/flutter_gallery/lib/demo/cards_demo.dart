@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 class TravelDestination {
   const TravelDestination({ this.assetName, this.title, this.description });
@@ -83,7 +82,7 @@ class TravelDestinationItem extends StatelessWidget {
               )
             ),
             // description and share/expore buttons
-            new Flexible(
+            new Expanded(
               child: new Padding(
                 padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
                 child: new DefaultTextStyle(
@@ -127,18 +126,15 @@ class TravelDestinationItem extends StatelessWidget {
 }
 
 class CardsDemo extends StatelessWidget {
-  static final GlobalKey<ScrollableState> _scrollableKey = new GlobalKey<ScrollableState>();
   static const String routeName = '/cards';
 
   @override
   Widget build(BuildContext context) {
     return new Scaffold(
-      scrollableKey: _scrollableKey,
       appBar: new AppBar(
         title: new Text('Travel stream')
       ),
       body: new ScrollableList(
-        scrollableKey: _scrollableKey,
         itemExtent: TravelDestinationItem.height,
         padding: const EdgeInsets.only(top: 8.0, left: 8.0, right: 8.0),
         children: destinations.map((TravelDestination destination) {

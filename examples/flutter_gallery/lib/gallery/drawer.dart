@@ -4,6 +4,7 @@
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -96,6 +97,7 @@ class GalleryDrawer extends StatelessWidget {
     this.checkerboardRasterCacheImages,
     this.onCheckerboardRasterCacheImagesChanged,
     this.onPlatformChanged,
+    this.onSendFeedback,
   }) : super(key: key) {
     assert(onThemeChanged != null);
     assert(onTimeDilationChanged != null);
@@ -115,6 +117,8 @@ class GalleryDrawer extends StatelessWidget {
 
   final ValueChanged<TargetPlatform> onPlatformChanged;
 
+  final VoidCallback onSendFeedback;
+
   @override
   Widget build(BuildContext context) {
     final ThemeData themeData = Theme.of(context);
@@ -127,7 +131,7 @@ class GalleryDrawer extends StatelessWidget {
       selected: useLightTheme,
       child: new Row(
         children: <Widget>[
-          new Flexible(child: new Text('Light')),
+          new Expanded(child: new Text('Light')),
           new Radio<bool>(
             value: true,
             groupValue: useLightTheme,
@@ -143,7 +147,7 @@ class GalleryDrawer extends StatelessWidget {
       selected: useLightTheme,
       child: new Row(
         children: <Widget>[
-          new Flexible(child: new Text('Dark')),
+          new Expanded(child: new Text('Dark')),
           new Radio<bool>(
             value: false,
             groupValue: useLightTheme,
@@ -160,7 +164,7 @@ class GalleryDrawer extends StatelessWidget {
       selected: Theme.of(context).platform == TargetPlatform.android,
       child: new Row(
         children: <Widget>[
-          new Flexible(child: new Text('Android')),
+          new Expanded(child: new Text('Android')),
           new Radio<TargetPlatform>(
             value: TargetPlatform.android,
             groupValue: Theme.of(context).platform,
@@ -177,7 +181,7 @@ class GalleryDrawer extends StatelessWidget {
       selected: Theme.of(context).platform == TargetPlatform.iOS,
       child: new Row(
         children: <Widget>[
-          new Flexible(child: new Text('iOS')),
+          new Expanded(child: new Text('iOS')),
           new Radio<TargetPlatform>(
             value: TargetPlatform.iOS,
             groupValue: Theme.of(context).platform,
@@ -193,7 +197,7 @@ class GalleryDrawer extends StatelessWidget {
       onPressed: () { onTimeDilationChanged(timeDilation != 1.0 ? 1.0 : 20.0); },
       child: new Row(
         children: <Widget>[
-          new Flexible(child: new Text('Animate Slowly')),
+          new Expanded(child: new Text('Animate Slowly')),
           new Checkbox(
             value: timeDilation != 1.0,
             onChanged: (bool value) { onTimeDilationChanged(value ? 20.0 : 1.0); }
@@ -202,12 +206,12 @@ class GalleryDrawer extends StatelessWidget {
       )
     );
 
-    final Widget fileAnIssueItem = new DrawerItem(
+    final Widget sendFeedbackItem = new DrawerItem(
       icon: new Icon(Icons.report),
-      onPressed: () {
+      onPressed: onSendFeedback ?? () {
         UrlLauncher.launch('https://github.com/flutter/flutter/issues/new');
       },
-      child: new Text('File an issue')
+      child: new Text('Send feedback'),
     );
 
     final Widget aboutItem = new AboutDrawerItem(
@@ -263,7 +267,7 @@ class GalleryDrawer extends StatelessWidget {
       new Divider(),
       animateSlowlyItem,
       // index 8, optional: Performance Overlay
-      fileAnIssueItem,
+      sendFeedbackItem,
       aboutItem
     ];
 
@@ -274,7 +278,7 @@ class GalleryDrawer extends StatelessWidget {
         selected: showPerformanceOverlay,
         child: new Row(
           children: <Widget>[
-            new Flexible(child: new Text('Performance Overlay')),
+            new Expanded(child: new Text('Performance Overlay')),
             new Checkbox(
               value: showPerformanceOverlay,
               onChanged: (bool value) { onShowPerformanceOverlayChanged(!showPerformanceOverlay); }
@@ -291,7 +295,7 @@ class GalleryDrawer extends StatelessWidget {
         selected: checkerboardRasterCacheImages,
         child: new Row(
           children: <Widget>[
-            new Flexible(child: new Text('Checkerboard Raster Cache Images')),
+            new Expanded(child: new Text('Checkerboard Raster Cache Images')),
             new Checkbox(
               value: checkerboardRasterCacheImages,
               onChanged: (bool value) { onCheckerboardRasterCacheImagesChanged(!checkerboardRasterCacheImages); }

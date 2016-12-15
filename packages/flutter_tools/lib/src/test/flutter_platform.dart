@@ -15,12 +15,13 @@ import 'package:test/src/backend/test_platform.dart'; // ignore: implementation_
 import 'package:test/src/runner/plugin/platform.dart'; // ignore: implementation_imports
 import 'package:test/src/runner/plugin/hack_register_platform.dart' as hack; // ignore: implementation_imports
 
+import '../base/process_manager.dart';
 import '../dart/package_map.dart';
 import '../globals.dart';
 import 'coverage_collector.dart';
 
 final String _kSkyShell = Platform.environment['SKY_SHELL'];
-const String _kHost = '127.0.0.1';
+final InternetAddress _kHost = InternetAddress.LOOPBACK_IP_V4;
 const String _kRunnerPath = '/runner';
 const String _kShutdownPath = '/shutdown';
 
@@ -50,8 +51,8 @@ Future<_ServerInfo> _startServer() async {
     else if (!socket.isCompleted && request.uri.path == _kShutdownPath)
       socket.completeError('Failed to start test');
   });
-  return new _ServerInfo(server, 'ws://$_kHost:${server.port}$_kRunnerPath',
-      'ws://$_kHost:${server.port}$_kShutdownPath', socket.future);
+  return new _ServerInfo(server, 'ws://${_kHost.address}:${server.port}$_kRunnerPath',
+      'ws://${_kHost.address}:${server.port}$_kShutdownPath', socket.future);
 }
 
 Future<Process> _startProcess(String mainPath, { String packages, int observatoryPort }) {
@@ -64,7 +65,9 @@ Future<Process> _startProcess(String mainPath, { String packages, int observator
     arguments.add('--disable-observatory');
   }
   arguments.addAll(<String>[
+    '--enable-dart-profiling',
     '--non-interactive',
+    '--use-test-fonts',
     '--enable-checked-mode',
     '--packages=$packages',
     mainPath
@@ -74,7 +77,7 @@ Future<Process> _startProcess(String mainPath, { String packages, int observator
     'FLUTTER_TEST': 'true',
     'FONTCONFIG_FILE': _fontConfigFile.path,
   };
-  return Process.start(executable, arguments, environment: environment);
+  return processManager.start(executable, arguments, environment: environment);
 }
 
 void _attachStandardStreams(Process process) {
@@ -166,7 +169,7 @@ void main() {
         Process processToKill = process;
         process = null;
         CoverageCollector.instance.collectCoverage(
-          host: _kHost,
+          host: _kHost.address,
           port: observatoryPort,
           processToKill: processToKill
         );
